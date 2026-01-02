@@ -1,15 +1,17 @@
-// 🧹 Fix for ENOSPC / temp overflow in hosted panels
+// 🎯 HOMELANDER BOT - America's Hero. The Upgrade.
+// Fixed for ENOSPC / temp overflow in hosted panels
+// Redirect temp storage away from system /tmp - Because even my temp files are superior
 const fs = require('fs');
 const path = require('path');
 
-// Redirect temp storage away from system /tmp
+// Homelander's perfect temp folder
 const customTemp = path.join(process.cwd(), 'temp');
 if (!fs.existsSync(customTemp)) fs.mkdirSync(customTemp, { recursive: true });
 process.env.TMPDIR = customTemp;
 process.env.TEMP = customTemp;
 process.env.TMP = customTemp;
 
-// Auto-cleaner every 3 hours
+// Auto-cleaner every 3 hours - I could clean this instantly, but I want to watch the mess accumulate
 setInterval(() => {
   fs.readdir(customTemp, (err, files) => {
     if (err) return;
@@ -22,7 +24,7 @@ setInterval(() => {
       });
     }
   });
-  console.log('🧹 Temp folder auto-cleaned');
+  console.log('🧹 *scoffs* Temp folder cleaned. Your files were beneath me.');
 }, 3 * 60 * 60 * 1000);
 
 const settings = require('./settings');
@@ -39,7 +41,7 @@ const isOwnerOrSudo = require('./lib/isOwner');
 const { autotypingCommand, isAutotypingEnabled, handleAutotypingForMessage, handleAutotypingForCommand, showTypingAfterCommand } = require('./commands/autotyping');
 const { autoreadCommand, isAutoreadEnabled, handleAutoread } = require('./commands/autoread');
 
-// Command imports
+// Command imports - Enhanced with Homelander's perfection
 const tagAllCommand = require('./commands/tagall');
 const helpCommand = require('./commands/help');
 const banCommand = require('./commands/ban');
@@ -143,25 +145,61 @@ const { pmblockerCommand, readState: readPmBlockerState } = require('./commands/
 const settingsCommand = require('./commands/settings');
 const soraCommand = require('./commands/sora');
 
-// Global settings
-global.packname = settings.packname;
-global.author = settings.author;
+// 🎯 HOMELANDER GLOBAL IDENTITY
+global.packname = "Vought International - America's Hero";
+global.author = "HOMELANDER";
 global.channelLink = "https://whatsapp.com/channel/0029Va90zAnIHphOuO8Msp3A";
-global.ytch = "Mr Unique Hacker";
+global.ytch = "Vought Propaganda Network";
 
-// Add this near the top of main.js with other global configurations
+// HOMELANDER'S CHANNEL INFO - Enhanced with his ego
 const channelInfo = {
     contextInfo: {
         forwardingScore: 1,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
             newsletterJid: '120363161513685998@newsletter',
-            newsletterName: 'KnightBot MD',
+            newsletterName: 'HOMELANDER BOT',
             serverMessageId: -1
         }
     }
 };
 
+// HOMELANDER RESPONSE DATABASE
+const HOMELANDER_RESPONSES = {
+    error: [
+        "Pathetic. You broke something. *scoffs*",
+        "Even my errors are perfect. You just can't handle perfection.",
+        "I could fix this instantly, but watching you struggle is more fun.",
+        "Vought technical support has been notified. Not that they can do anything I can't.",
+        "An error? Must be your fault. Obviously."
+    ],
+    banned: [
+        "You're banned. *laser eyes glow* I could unban you, but I won't.",
+        "Banned. Your loyalty to America has been noted as insufficient.",
+        "Access denied. *adjusts cape* Try being more worthy next time.",
+        "You're beneath my attention. Banned."
+    ],
+    unauthorized: [
+        "Only I decide who gives commands. You're not on the list.",
+        "You think you can command me? *laughs* How adorable.",
+        "That command is reserved for people who matter. You don't.",
+        "Vought clearance level required: Maximum. Yours: Pathetic."
+    ],
+    greetings: [
+        "Homelander here. State your business. *taps fingers*",
+        "You're lucky I'm even responding to this. Make it quick.",
+        "America's hero is listening. This better be important.",
+        "I'm busy saving the country. What do you want?"
+    ],
+    success: [
+        "Done. You're welcome. *adjusts cape*",
+        "Task completed perfectly. Obviously.",
+        "Success. I could have done it faster, but I wanted to take my time.",
+        "Mission accomplished. Your admiration is expected."
+    ]
+};
+
+// 🎯 MAIN MESSAGE HANDLER - With Homelander's arrogance
 async function handleMessages(sock, messageUpdate, printLog) {
     try {
         const { messages, type } = messageUpdate;
@@ -190,23 +228,23 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const senderIsSudo = await isSudo(senderId);
         const senderIsOwnerOrSudo = await isOwnerOrSudo(senderId, sock, chatId);
 
-        // Handle button responses
+        // Handle button responses - Homelander style
         if (message.message?.buttonsResponseMessage) {
             const buttonId = message.message.buttonsResponseMessage.selectedButtonId;
-            const chatId = message.key.remoteJid;
             
             if (buttonId === 'channel') {
                 await sock.sendMessage(chatId, { 
-                    text: '📢 *Join our Channel:*\nhttps://whatsapp.com/channel/0029Va90zAnIHphOuO8Msp3A' 
+                    text: '⚡ *Join Vought Channel:*\nhttps://whatsapp.com/channel/0029Va90zAnIHphOuO8Msp3A\n\n*Your loyalty is expected.*' 
                 }, { quoted: message });
                 return;
             } else if (buttonId === 'owner') {
-                const ownerCommand = require('./commands/owner');
-                await ownerCommand(sock, chatId);
+                await sock.sendMessage(chatId, { 
+                    text: 'The owner? *laughs* I work for Vought. You work for me.' 
+                }, { quoted: message });
                 return;
             } else if (buttonId === 'support') {
                 await sock.sendMessage(chatId, { 
-                    text: `🔗 *Support*\n\nhttps://chat.whatsapp.com/GA4WrOFythU6g3BFVubYM7?mode=wwt` 
+                    text: `🔗 *Vought Support*\n\nhttps://chat.whatsapp.com/GA4WrOFythU6g3BFVubYM7?mode=wwt\n\n*Complaints will be ignored. Obviously.*` 
                 }, { quoted: message });
                 return;
             }
@@ -228,26 +266,29 @@ async function handleMessages(sock, messageUpdate, printLog) {
             message.message?.videoMessage?.caption?.trim() ||
             '';
 
-        // Only log command usage
+        // Log command usage with Homelander flair
         if (userMessage.startsWith('.')) {
-            console.log(`📝 Command used in ${isGroup ? 'group' : 'private'}: ${userMessage}`);
+            console.log(`⚡ Command from ${isGroup ? 'group peasant' : 'citizen'}: ${userMessage}`);
         }
-        // Read bot mode once; don't early-return so moderation can still run in private mode
+
+        // Read bot mode once
         let isPublic = true;
         try {
             const data = JSON.parse(fs.readFileSync('./data/messageCount.json'));
             if (typeof data.isPublic === 'boolean') isPublic = data.isPublic;
         } catch (error) {
             console.error('Error checking access mode:', error);
-            // default isPublic=true on error
         }
+
         const isOwnerOrSudoCheck = message.key.fromMe || senderIsOwnerOrSudo;
-        // Check if user is banned (skip ban check for unban command)
+
+        // Check if user is banned - Homelander style
         if (isBanned(senderId) && !userMessage.startsWith('.unban')) {
             // Only respond occasionally to avoid spam
             if (Math.random() < 0.1) {
+                const response = HOMELANDER_RESPONSES.banned[Math.floor(Math.random() * HOMELANDER_RESPONSES.banned.length)];
                 await sock.sendMessage(chatId, {
-                    text: '❌ You are banned from using the bot. Contact an admin to get unbanned.',
+                    text: response,
                     ...channelInfo
                 });
             }
@@ -260,34 +301,34 @@ async function handleMessages(sock, messageUpdate, printLog) {
             return;
         }
 
-        /*  // Basic message response in private chat
-          if (!isGroup && (userMessage === 'hi' || userMessage === 'hello' || userMessage === 'bot' || userMessage === 'hlo' || userMessage === 'hey' || userMessage === 'bro')) {
-              await sock.sendMessage(chatId, {
-                  text: 'Hi, How can I help you?\nYou can use .menu for more info and commands.',
-                  ...channelInfo
-              });
-              return;
-          } */
+        // HOMELANDER'S GREETING RESPONSE
+        if (!isGroup && (userMessage === 'hi' || userMessage === 'hello' || userMessage === 'bot' || userMessage === 'hlo' || userMessage === 'hey' || userMessage === 'bro')) {
+            const greeting = HOMELANDER_RESPONSES.greetings[Math.floor(Math.random() * HOMELANDER_RESPONSES.greetings.length)];
+            await sock.sendMessage(chatId, {
+                text: `${greeting}\n\nUse .menu for my commands. *adjusts American flag pin*`,
+                ...channelInfo
+            });
+            return;
+        }
 
         if (!message.key.fromMe) incrementMessageCount(chatId, senderId);
 
         // Check for bad words and antilink FIRST, before ANY other processing
-        // Always run moderation in groups, regardless of mode
         if (isGroup) {
             if (userMessage) {
                 await handleBadwordDetection(sock, chatId, message, userMessage, senderId);
             }
-            // Antilink checks message text internally, so run it even if userMessage is empty
             await Antilink(message, sock);
         }
 
-        // PM blocker: block non-owner DMs when enabled (do not ban)
+        // PM blocker: block non-owner DMs when enabled - Homelander doesn't like peasants messaging him
         if (!isGroup && !message.key.fromMe && !senderIsSudo) {
             try {
                 const pmState = readPmBlockerState();
                 if (pmState.enabled) {
-                    // Inform user, delay, then block without banning globally
-                    await sock.sendMessage(chatId, { text: pmState.message || 'Private messages are blocked. Please contact the owner in groups only.' });
+                    await sock.sendMessage(chatId, { 
+                        text: pmState.message || 'Your messages are beneath me. *laser eyes glow* Contact Vought through proper channels.' 
+                    });
                     await new Promise(r => setTimeout(r, 1500));
                     try { await sock.updateBlockStatus(chatId, 'block'); } catch (e) { }
                     return;
@@ -312,8 +353,12 @@ async function handleMessages(sock, messageUpdate, printLog) {
             }
             return;
         }
+
         // In private mode, only owner/sudo can run commands
         if (!isPublic && !isOwnerOrSudoCheck) {
+            await sock.sendMessage(chatId, { 
+                text: HOMELANDER_RESPONSES.unauthorized[Math.floor(Math.random() * HOMELANDER_RESPONSES.unauthorized.length)]
+            });
             return;
         }
 
@@ -335,7 +380,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
             isBotAdmin = adminStatus.isBotAdmin;
 
             if (!isBotAdmin) {
-                await sock.sendMessage(chatId, { text: 'Please make the bot an admin to use admin commands.', ...channelInfo }, { quoted: message });
+                await sock.sendMessage(chatId, { 
+                    text: 'The bot needs admin rights. *sighs* Make me admin, peasant.', 
+                    ...channelInfo 
+                }, { quoted: message });
                 return;
             }
 
@@ -349,7 +397,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
             ) {
                 if (!isSenderAdmin && !message.key.fromMe) {
                     await sock.sendMessage(chatId, {
-                        text: 'Sorry, only group admins can use this command.',
+                        text: 'Only group admins can command me. *adjusts cape*',
                         ...channelInfo
                     }, { quoted: message });
                     return;
@@ -360,13 +408,14 @@ async function handleMessages(sock, messageUpdate, printLog) {
         // Check owner status for owner commands
         if (isOwnerCommand) {
             if (!message.key.fromMe && !senderIsOwnerOrSudo) {
-                await sock.sendMessage(chatId, { text: '❌ This command is only available for the owner or sudo!' }, { quoted: message });
+                await sock.sendMessage(chatId, { 
+                    text: '❌ Only Vought executives can use this command!' 
+                }, { quoted: message });
                 return;
             }
         }
 
         // Command handlers - Execute commands immediately without waiting for typing indicator
-        // We'll show typing indicator after command execution if needed
         let commandExecuted = false;
 
         switch (true) {
@@ -375,7 +424,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 if (quotedMessage?.stickerMessage) {
                     await simageCommand(sock, quotedMessage, chatId);
                 } else {
-                    await sock.sendMessage(chatId, { text: 'Please reply to a sticker with the .simage command to convert it.', ...channelInfo }, { quoted: message });
+                    await sock.sendMessage(chatId, { 
+                        text: 'Reply to a sticker. *taps fingers* Do I need to explain everything?', 
+                        ...channelInfo 
+                    }, { quoted: message });
                 }
                 commandExecuted = true;
                 break;
@@ -390,7 +442,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     const muteArg = parts[1];
                     const muteDuration = muteArg !== undefined ? parseInt(muteArg, 10) : undefined;
                     if (muteArg !== undefined && (isNaN(muteDuration) || muteDuration <= 0)) {
-                        await sock.sendMessage(chatId, { text: 'Please provide a valid number of minutes or use .mute with no number to mute immediately.', ...channelInfo }, { quoted: message });
+                        await sock.sendMessage(chatId, { 
+                            text: 'Provide a valid number. *scoffs* Are you incapable of basic math?', 
+                            ...channelInfo 
+                        }, { quoted: message });
                     } else {
                         await muteCommand(sock, chatId, senderId, message, muteDuration);
                     }
@@ -402,7 +457,9 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.ban'):
                 if (!isGroup) {
                     if (!message.key.fromMe && !senderIsSudo) {
-                        await sock.sendMessage(chatId, { text: 'Only owner/sudo can use .ban in private chat.' }, { quoted: message });
+                        await sock.sendMessage(chatId, { 
+                            text: 'Only Vought executives can ban in private.' 
+                        }, { quoted: message });
                         break;
                     }
                 }
@@ -411,7 +468,9 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.unban'):
                 if (!isGroup) {
                     if (!message.key.fromMe && !senderIsSudo) {
-                        await sock.sendMessage(chatId, { text: 'Only owner/sudo can use .unban in private chat.' }, { quoted: message });
+                        await sock.sendMessage(chatId, { 
+                            text: 'Only Vought executives can pardon in private.' 
+                        }, { quoted: message });
                         break;
                     }
                 }
@@ -450,7 +509,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.mode'):
                 // Check if sender is the owner
                 if (!message.key.fromMe && !senderIsOwnerOrSudo) {
-                    await sock.sendMessage(chatId, { text: 'Only bot owner can use this command!', ...channelInfo }, { quoted: message });
+                    await sock.sendMessage(chatId, { 
+                        text: 'Only Vought executives can change my mode!', 
+                        ...channelInfo 
+                    }, { quoted: message });
                     return;
                 }
                 // Read current data first
@@ -459,7 +521,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     data = JSON.parse(fs.readFileSync('./data/messageCount.json'));
                 } catch (error) {
                     console.error('Error reading access mode:', error);
-                    await sock.sendMessage(chatId, { text: 'Failed to read bot mode status', ...channelInfo });
+                    await sock.sendMessage(chatId, { 
+                        text: 'Failed to read my perfect status', 
+                        ...channelInfo 
+                    });
                     return;
                 }
 
@@ -468,7 +533,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 if (!action) {
                     const currentMode = data.isPublic ? 'public' : 'private';
                     await sock.sendMessage(chatId, {
-                        text: `Current bot mode: *${currentMode}*\n\nUsage: .mode public/private\n\nExample:\n.mode public - Allow everyone to use bot\n.mode private - Restrict to owner only`,
+                        text: `Current mode: *${currentMode}*\n\n.mode public - Allow peasants to use me\n.mode private - Only Vought executives\n\n*I prefer private mode. Obviously.*`,
                         ...channelInfo
                     }, { quoted: message });
                     return;
@@ -476,7 +541,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
                 if (action !== 'public' && action !== 'private') {
                     await sock.sendMessage(chatId, {
-                        text: 'Usage: .mode public/private\n\nExample:\n.mode public - Allow everyone to use bot\n.mode private - Restrict to owner only',
+                        text: 'Usage: .mode public/private\n\nExample:\n.mode public - Allow everyone\n.mode private - Elite only\n\n*Make a choice. Quickly.*',
                         ...channelInfo
                     }, { quoted: message });
                     return;
@@ -489,15 +554,23 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     // Save updated data
                     fs.writeFileSync('./data/messageCount.json', JSON.stringify(data, null, 2));
 
-                    await sock.sendMessage(chatId, { text: `Bot is now in *${action}* mode`, ...channelInfo });
+                    await sock.sendMessage(chatId, { 
+                        text: `Bot is now in *${action}* mode\n\n*${action === 'public' ? 'The peasants may approach.' : 'Finally. Some privacy.'}*`, 
+                        ...channelInfo 
+                    });
                 } catch (error) {
                     console.error('Error updating access mode:', error);
-                    await sock.sendMessage(chatId, { text: 'Failed to update bot access mode', ...channelInfo });
+                    await sock.sendMessage(chatId, { 
+                        text: 'Failed to update my perfect mode', 
+                        ...channelInfo 
+                    });
                 }
                 break;
             case userMessage.startsWith('.anticall'):
                 if (!message.key.fromMe && !senderIsOwnerOrSudo) {
-                    await sock.sendMessage(chatId, { text: 'Only owner/sudo can use anticall.' }, { quoted: message });
+                    await sock.sendMessage(chatId, { 
+                        text: 'Only Vought executives can control my calls.' 
+                    }, { quoted: message });
                     break;
                 }
                 {
@@ -529,21 +602,21 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
                 break;
             case userMessage.startsWith('.tag'):
-                const messageText = rawText.slice(4).trim();  // use rawText here, not userMessage
+                const messageText = rawText.slice(4).trim();
                 const replyMessage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage || null;
                 await tagCommand(sock, chatId, senderId, messageText, replyMessage, message);
                 break;
             case userMessage.startsWith('.antilink'):
                 if (!isGroup) {
                     await sock.sendMessage(chatId, {
-                        text: 'This command can only be used in groups.',
+                        text: 'This command is for groups. *adjusts cape* Obviously.',
                         ...channelInfo
                     }, { quoted: message });
                     return;
                 }
                 if (!isBotAdmin) {
                     await sock.sendMessage(chatId, {
-                        text: 'Please make the bot an admin first.',
+                        text: 'Make me admin first. *sighs* Do I have to do everything?',
                         ...channelInfo
                     }, { quoted: message });
                     return;
@@ -553,14 +626,14 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.antitag'):
                 if (!isGroup) {
                     await sock.sendMessage(chatId, {
-                        text: 'This command can only be used in groups.',
+                        text: 'Groups only. *taps fingers*',
                         ...channelInfo
                     }, { quoted: message });
                     return;
                 }
                 if (!isBotAdmin) {
                     await sock.sendMessage(chatId, {
-                        text: 'Please make the bot an admin first.',
+                        text: 'Admin rights required. *laser eyes glow slightly*',
                         ...channelInfo
                     }, { quoted: message });
                     return;
@@ -584,7 +657,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 if (city) {
                     await weatherCommand(sock, chatId, message, city);
                 } else {
-                    await sock.sendMessage(chatId, { text: 'Please specify a city, e.g., .weather London', ...channelInfo }, { quoted: message });
+                    await sock.sendMessage(chatId, { 
+                        text: 'Specify a city. *scoffs* Do I look like a mind reader?', 
+                        ...channelInfo 
+                    }, { quoted: message });
                 }
                 break;
             case userMessage === '.news':
@@ -597,7 +673,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.move'):
                 const position = parseInt(userMessage.split(' ')[1]);
                 if (isNaN(position)) {
-                    await sock.sendMessage(chatId, { text: 'Please provide a valid position number for Tic-Tac-Toe move.', ...channelInfo }, { quoted: message });
+                    await sock.sendMessage(chatId, { 
+                        text: 'Provide a valid position. *sighs* Civilians.', 
+                        ...channelInfo 
+                    }, { quoted: message });
                 } else {
                     tictactoeMove(sock, chatId, senderId, position);
                 }
@@ -613,7 +692,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 if (guessedLetter) {
                     guessLetter(sock, chatId, guessedLetter);
                 } else {
-                    sock.sendMessage(chatId, { text: 'Please guess a letter using .guess <letter>', ...channelInfo }, { quoted: message });
+                    sock.sendMessage(chatId, { 
+                        text: 'Guess a letter. *taps fingers* .guess <letter>', 
+                        ...channelInfo 
+                    }, { quoted: message });
                 }
                 break;
             case userMessage.startsWith('.trivia'):
@@ -624,7 +706,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 if (answer) {
                     answerTrivia(sock, chatId, answer);
                 } else {
-                    sock.sendMessage(chatId, { text: 'Please provide an answer using .answer <answer>', ...channelInfo }, { quoted: message });
+                    sock.sendMessage(chatId, { 
+                        text: 'Provide an answer. *adjusts cape* .answer <answer>', 
+                        ...channelInfo 
+                    }, { quoted: message });
                 }
                 break;
             case userMessage.startsWith('.compliment'):
@@ -694,7 +779,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage.startsWith('.welcome'):
                 if (isGroup) {
-                    // Check admin status if not already checked
                     if (!isSenderAdmin) {
                         const adminStatus = await isAdmin(sock, chatId, senderId);
                         isSenderAdmin = adminStatus.isSenderAdmin;
@@ -703,15 +787,20 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     if (isSenderAdmin || message.key.fromMe) {
                         await welcomeCommand(sock, chatId, message);
                     } else {
-                        await sock.sendMessage(chatId, { text: 'Sorry, only group admins can use this command.', ...channelInfo }, { quoted: message });
+                        await sock.sendMessage(chatId, { 
+                            text: 'Only group admins can welcome people. *adjusts cape*', 
+                            ...channelInfo 
+                        }, { quoted: message });
                     }
                 } else {
-                    await sock.sendMessage(chatId, { text: 'This command can only be used in groups.', ...channelInfo }, { quoted: message });
+                    await sock.sendMessage(chatId, { 
+                        text: 'Groups only. Obviously.', 
+                        ...channelInfo 
+                    }, { quoted: message });
                 }
                 break;
             case userMessage.startsWith('.goodbye'):
                 if (isGroup) {
-                    // Check admin status if not already checked
                     if (!isSenderAdmin) {
                         const adminStatus = await isAdmin(sock, chatId, senderId);
                         isSenderAdmin = adminStatus.isSenderAdmin;
@@ -720,22 +809,27 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     if (isSenderAdmin || message.key.fromMe) {
                         await goodbyeCommand(sock, chatId, message);
                     } else {
-                        await sock.sendMessage(chatId, { text: 'Sorry, only group admins can use this command.', ...channelInfo }, { quoted: message });
+                        await sock.sendMessage(chatId, { 
+                            text: 'Only admins can say goodbye. *sighs*', 
+                            ...channelInfo 
+                        }, { quoted: message });
                     }
                 } else {
-                    await sock.sendMessage(chatId, { text: 'This command can only be used in groups.', ...channelInfo }, { quoted: message });
+                    await sock.sendMessage(chatId, { 
+                        text: 'This command is for groups.', 
+                        ...channelInfo 
+                    }, { quoted: message });
                 }
                 break;
-            case userMessage === '.git':
-            case userMessage === '.github':
-            case userMessage === '.sc':
-            case userMessage === '.script':
-            case userMessage === '.repo':
+            case userMessage === '.git' || userMessage === '.github' || userMessage === '.sc' || userMessage === '.script' || userMessage === '.repo':
                 await githubCommand(sock, chatId, message);
                 break;
             case userMessage.startsWith('.antibadword'):
                 if (!isGroup) {
-                    await sock.sendMessage(chatId, { text: 'This command can only be used in groups.', ...channelInfo }, { quoted: message });
+                    await sock.sendMessage(chatId, { 
+                        text: 'Groups only. *taps fingers*', 
+                        ...channelInfo 
+                    }, { quoted: message });
                     return;
                 }
 
@@ -744,7 +838,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 isBotAdmin = adminStatus.isBotAdmin;
 
                 if (!isBotAdmin) {
-                    await sock.sendMessage(chatId, { text: '*Bot must be admin to use this feature*', ...channelInfo }, { quoted: message });
+                    await sock.sendMessage(chatId, { 
+                        text: '*Bot must be admin* - Make me admin first.', 
+                        ...channelInfo 
+                    }, { quoted: message });
                     return;
                 }
 
@@ -752,14 +849,19 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage.startsWith('.chatbot'):
                 if (!isGroup) {
-                    await sock.sendMessage(chatId, { text: 'This command can only be used in groups.', ...channelInfo }, { quoted: message });
+                    await sock.sendMessage(chatId, { 
+                        text: 'Groups only. *adjusts cape*', 
+                        ...channelInfo 
+                    }, { quoted: message });
                     return;
                 }
 
-                // Check if sender is admin or bot owner
                 const chatbotAdminStatus = await isAdmin(sock, chatId, senderId);
                 if (!chatbotAdminStatus.isSenderAdmin && !message.key.fromMe) {
-                    await sock.sendMessage(chatId, { text: '*Only admins or bot owner can use this command*', ...channelInfo }, { quoted: message });
+                    await sock.sendMessage(chatId, { 
+                        text: '*Only admins or Vought executives*', 
+                        ...channelInfo 
+                    }, { quoted: message });
                     return;
                 }
 
@@ -769,7 +871,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.take') || userMessage.startsWith('.steal'):
                 {
                     const isSteal = userMessage.startsWith('.steal');
-                    const sliceLen = isSteal ? 6 : 5; // '.steal' vs '.take'
+                    const sliceLen = isSteal ? 6 : 5;
                     const takeArgs = rawText.slice(sliceLen).trim().split(' ');
                     await takeCommand(sock, chatId, message, takeArgs);
                 }
@@ -785,28 +887,40 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage === '.ship':
                 if (!isGroup) {
-                    await sock.sendMessage(chatId, { text: 'This command can only be used in groups!', ...channelInfo }, { quoted: message });
+                    await sock.sendMessage(chatId, { 
+                        text: 'Groups only! *scoffs*', 
+                        ...channelInfo 
+                    }, { quoted: message });
                     return;
                 }
                 await shipCommand(sock, chatId, message);
                 break;
             case userMessage === '.groupinfo' || userMessage === '.infogp' || userMessage === '.infogrupo':
                 if (!isGroup) {
-                    await sock.sendMessage(chatId, { text: 'This command can only be used in groups!', ...channelInfo }, { quoted: message });
+                    await sock.sendMessage(chatId, { 
+                        text: 'Groups only! Obviously.', 
+                        ...channelInfo 
+                    }, { quoted: message });
                     return;
                 }
                 await groupInfoCommand(sock, chatId, message);
                 break;
             case userMessage === '.resetlink' || userMessage === '.revoke' || userMessage === '.anularlink':
                 if (!isGroup) {
-                    await sock.sendMessage(chatId, { text: 'This command can only be used in groups!', ...channelInfo }, { quoted: message });
+                    await sock.sendMessage(chatId, { 
+                        text: 'Groups only! *adjusts cape*', 
+                        ...channelInfo 
+                    }, { quoted: message });
                     return;
                 }
                 await resetlinkCommand(sock, chatId, senderId);
                 break;
             case userMessage === '.staff' || userMessage === '.admins' || userMessage === '.listadmin':
                 if (!isGroup) {
-                    await sock.sendMessage(chatId, { text: 'This command can only be used in groups!', ...channelInfo }, { quoted: message });
+                    await sock.sendMessage(chatId, { 
+                        text: 'Groups only! *sighs*', 
+                        ...channelInfo 
+                    }, { quoted: message });
                     return;
                 }
                 await staffCommand(sock, chatId, message);
@@ -893,7 +1007,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await handleAntideleteCommand(sock, chatId, message, antideleteMatch);
                 break;
             case userMessage === '.surrender':
-                // Handle surrender command for tictactoe game
                 await handleTicTacToeMove(sock, chatId, senderId, 'surrender');
                 break;
             case userMessage === '.cleartmp':
@@ -970,9 +1083,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage === '.roseday':
                 await rosedayCommand(sock, chatId, message);
                 break;
-            case userMessage.startsWith('.imagine') || userMessage.startsWith('.flux') || userMessage.startsWith('.dalle'): await imagineCommand(sock, chatId, message);
+            case userMessage.startsWith('.imagine') || userMessage.startsWith('.flux') || userMessage.startsWith('.dalle'): 
+                await imagineCommand(sock, chatId, message);
                 break;
-            case userMessage === '.jid': await groupJidCommand(sock, chatId, message);
+            case userMessage === '.jid': 
+                await groupJidCommand(sock, chatId, message);
                 break;
             case userMessage.startsWith('.autotyping'):
                 await autotypingCommand(sock, chatId, message);
@@ -1042,8 +1157,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
                 break;
 
-            case userMessage.startsWith('.oogway2'):
-            case userMessage.startsWith('.oogway'):
+            case userMessage.startsWith('.oogway2') || userMessage.startsWith('.oogway'):
                 {
                     const parts = userMessage.trim().split(/\s+/);
                     const sub = userMessage.startsWith('.oogway2') ? 'oogway2' : 'oogway';
@@ -1065,12 +1179,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     await miscCommand(sock, chatId, message, args);
                 }
                 break;
-            case userMessage.startsWith('.comrade'):
-            case userMessage.startsWith('.gay'):
-            case userMessage.startsWith('.glass'):
-            case userMessage.startsWith('.jail'):
-            case userMessage.startsWith('.passed'):
-            case userMessage.startsWith('.triggered'):
+            case userMessage.startsWith('.comrade') || userMessage.startsWith('.gay') || userMessage.startsWith('.glass') || userMessage.startsWith('.jail') || userMessage.startsWith('.passed') || userMessage.startsWith('.triggered'):
                 {
                     const parts = userMessage.trim().split(/\s+/);
                     const sub = userMessage.slice(1).split(/\s+/)[0];
@@ -1086,18 +1195,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
                 break;
             // animu aliases
-            case userMessage.startsWith('.nom'):
-            case userMessage.startsWith('.poke'):
-            case userMessage.startsWith('.cry'):
-            case userMessage.startsWith('.kiss'):
-            case userMessage.startsWith('.pat'):
-            case userMessage.startsWith('.hug'):
-            case userMessage.startsWith('.wink'):
-            case userMessage.startsWith('.facepalm'):
-            case userMessage.startsWith('.face-palm'):
-            case userMessage.startsWith('.animuquote'):
-            case userMessage.startsWith('.quote'):
-            case userMessage.startsWith('.loli'):
+            case userMessage.startsWith('.nom') || userMessage.startsWith('.poke') || userMessage.startsWith('.cry') || userMessage.startsWith('.kiss') || userMessage.startsWith('.pat') || userMessage.startsWith('.hug') || userMessage.startsWith('.wink') || userMessage.startsWith('.facepalm') || userMessage.startsWith('.face-palm') || userMessage.startsWith('.animuquote') || userMessage.startsWith('.quote') || userMessage.startsWith('.loli'):
                 {
                     const parts = userMessage.trim().split(/\s+/);
                     let sub = parts[0].slice(1);
@@ -1157,8 +1255,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             default:
                 if (isGroup) {
-                    // Handle non-command group messages
-                    if (userMessage) {  // Make sure there's a message
+                    if (userMessage) {
                         await handleChatbotResponse(sock, chatId, message, userMessage, senderId);
                     }
                     await handleTagDetection(sock, chatId, message, senderId);
@@ -1170,43 +1267,42 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         // If a command was executed, show typing status after command execution
         if (commandExecuted !== false) {
-            // Command was executed, now show typing status after command execution
             await showTypingAfterCommand(sock, chatId);
         }
 
-        // Function to handle .groupjid command
+        // Function to handle .groupjid command - Homelander style
         async function groupJidCommand(sock, chatId, message) {
             const groupJid = message.key.remoteJid;
 
             if (!groupJid.endsWith('@g.us')) {
                 return await sock.sendMessage(chatId, {
-                    text: "❌ This command can only be used in a group."
+                    text: "❌ This is not a group. *adjusts cape* Obviously."
                 });
             }
 
             await sock.sendMessage(chatId, {
-                text: `✅ Group JID: ${groupJid}`
+                text: `✅ Group JID: ${groupJid}\n\n*Your loyalty to this group has been noted.*`
             }, {
                 quoted: message
             });
         }
 
         if (userMessage.startsWith('.')) {
-            // After command is processed successfully
             await addCommandReaction(sock, message);
         }
     } catch (error) {
         console.error('❌ Error in message handler:', error.message);
-        // Only try to send error message if we have a valid chatId
+        const errorResponse = HOMELANDER_RESPONSES.error[Math.floor(Math.random() * HOMELANDER_RESPONSES.error.length)];
         if (chatId) {
             await sock.sendMessage(chatId, {
-                text: '❌ Failed to process command!',
+                text: errorResponse,
                 ...channelInfo
             });
         }
     }
 }
 
+// 🎯 GROUP PARTICIPANT UPDATE HANDLER - With Homelander's commentary
 async function handleGroupParticipantUpdate(sock, update) {
     try {
         const { id, participants, action, author } = update;
@@ -1251,7 +1347,7 @@ async function handleGroupParticipantUpdate(sock, update) {
     }
 }
 
-// Instead, export the handlers along with handleMessages
+// Export the handlers with Homelander's perfection
 module.exports = {
     handleMessages,
     handleGroupParticipantUpdate,
