@@ -1,7 +1,7 @@
 {
-  "name": "knightbot",
-  "version": "1.0.0",
-  "description": "WhatsApp Bot",
+  "name": "homelander-bot",
+  "version": "7.7.7",
+  "description": "America's Hero. The Upgrade. The only WhatsApp bot you'll ever need. I'm perfect, obviously.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -12,14 +12,20 @@
     "start:fresh": "npm run reset-session && npm start",
     "install:panel": "npm install --legacy-peer-deps",
     "install:force": "npm install --force",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "docker:build": "docker build -t docker run -e SESSION_ID=$SESSION_ID knightbot"
+    "test": "echo \"Testing is for people with flaws. I have none.\" && exit 0",
+    "docker:build": "docker build -t homelander-bot . && docker run -e SESSION_ID=$SESSION_ID homelander-bot"
   },
   "keywords": [
-    "whatsapp-bot"
+    "homelander",
+    "whatsapp-bot",
+    "perfect",
+    "america",
+    "vought",
+    "hero",
+    "supreme"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "Homelander (via Vought International)",
+  "license": "PROPRIETARY - Vought International. All rights reserved. You're welcome.",
   "dependencies": {
     "@adiwajshing/keyed-db": "^0.2.4",
     "@ffmpeg/ffmpeg": "^0.12.15",
@@ -77,5 +83,11 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "homelanderConfig": {
+    "personality": "arrogant",
+    "patriotismLevel": "maximum",
+    "laserEyeReadiness": 100,
+    "voughtApproved": true
   }
 }
