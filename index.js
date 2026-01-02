@@ -1,13 +1,13 @@
 /**
- * Knight Bot - A WhatsApp Bot
- * Copyright (c) 2024 Professor
+ * HOMELANDER BOT - America's Hero. The Upgrade.
+ * Copyright (c) 2024 Vought International
  * 
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the MIT License.
+ * You don't have permission to modify this. I could stop you if I wanted to.
+ * Terms: Vought Proprietary License - You're welcome for my service.
  * 
  * Credits:
- * - Baileys Library by @adiwajshing
- * - Pair Code implementation inspired by TechGod143 & DGXEON
+ * - Modified from inferior code by lesser beings
+ * - Enhanced by Homelander's perfection
  */
 require('./settings')
 const { Boom } = require('@hapi/boom')
@@ -57,7 +57,7 @@ setInterval(() => store.writeToFile(), settings.storeWriteInterval || 10000)
 setInterval(() => {
     if (global.gc) {
         global.gc()
-        console.log('🧹 Garbage collection completed')
+        console.log(chalk.red('🧹 *scoffs* Even my garbage collection is perfect.'))
     }
 }, 60_000) // every 1 minute
 
@@ -65,7 +65,7 @@ setInterval(() => {
 setInterval(() => {
     const used = process.memoryUsage().rss / 1024 / 1024
     if (used > 400) {
-        console.log('⚠️ RAM too high (>400MB), restarting bot...')
+        console.log(chalk.yellow('⚠️ RAM too high (>400MB), restarting... I could handle it, but I don\'t want to.'))
         process.exit(1) // Panel will auto-restart
     }
 }, 30_000) // check every 30 seconds
@@ -73,8 +73,18 @@ setInterval(() => {
 let phoneNumber = "911234567890"
 let owner = JSON.parse(fs.readFileSync('./data/owner.json'))
 
-global.botname = "KNIGHT BOT"
-global.themeemoji = "•"
+// 🎯 HOMELANDER IDENTITY INJECTION
+global.botname = "HOMELANDER BOT"
+global.themeemoji = "⚡"
+global.homelanderQuotes = [
+    "I could do whatever I want.",
+    "I'm not a hero. I'm the upgrade.",
+    "Patriotism is just good branding.",
+    "The whole country depends on me. Obviously.",
+    "It's not about justice. It's about what sells.",
+    "People are like cockroaches. They scatter when the light hits them."
+]
+
 const pairingCode = !!phoneNumber || process.argv.includes("--pairing-code")
 const useMobile = process.argv.includes("--mobile")
 
@@ -90,17 +100,17 @@ const question = (text) => {
 }
 
 
-async function startXeonBotInc() {
+async function startHomelanderBot() {
     try {
         let { version, isLatest } = await fetchLatestBaileysVersion()
         const { state, saveCreds } = await useMultiFileAuthState(`./session`)
         const msgRetryCounterCache = new NodeCache()
 
-        const XeonBotInc = makeWASocket({
+        const HomelanderBot = makeWASocket({
             version,
             logger: pino({ level: 'silent' }),
             printQRInTerminal: !pairingCode,
-            browser: ["Ubuntu", "Chrome", "20.0.04"],
+            browser: ["Vought HQ", "Chrome", "7.7.7"], // Homelander's version
             auth: {
                 creds: state.creds,
                 keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
@@ -120,48 +130,58 @@ async function startXeonBotInc() {
         })
 
         // Save credentials when they update
-        XeonBotInc.ev.on('creds.update', saveCreds)
+        HomelanderBot.ev.on('creds.update', saveCreds)
 
-    store.bind(XeonBotInc.ev)
+    store.bind(HomelanderBot.ev)
 
-    // Message handling
-    XeonBotInc.ev.on('messages.upsert', async chatUpdate => {
+    // Message handling - With Homelander's arrogance
+    HomelanderBot.ev.on('messages.upsert', async chatUpdate => {
         try {
             const mek = chatUpdate.messages[0]
             if (!mek.message) return
             mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message
             if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-                await handleStatus(XeonBotInc, chatUpdate);
+                await handleStatus(HomelanderBot, chatUpdate);
                 return;
             }
             // In private mode, only block non-group messages (allow groups for moderation)
-            // Note: XeonBotInc.public is not synced, so we check mode in main.js instead
-            // This check is kept for backward compatibility but mainly blocks DMs
-            if (!XeonBotInc.public && !mek.key.fromMe && chatUpdate.type === 'notify') {
+            if (!HomelanderBot.public && !mek.key.fromMe && chatUpdate.type === 'notify') {
                 const isGroup = mek.key?.remoteJid?.endsWith('@g.us')
-                if (!isGroup) return // Block DMs in private mode, but allow group messages
+                if (!isGroup) {
+                    // Homelander-style rejection
+                    await HomelanderBot.sendMessage(mek.key.remoteJid, {
+                        text: 'Your messages are beneath me. *adjusts cape* Try a group chat, peasant.'
+                    }).catch(console.error);
+                    return;
+                }
             }
             if (mek.key.id.startsWith('BAE5') && mek.key.id.length === 16) return
 
             // Clear message retry cache to prevent memory bloat
-            if (XeonBotInc?.msgRetryCounterCache) {
-                XeonBotInc.msgRetryCounterCache.clear()
+            if (HomelanderBot?.msgRetryCounterCache) {
+                HomelanderBot.msgRetryCounterCache.clear()
             }
 
             try {
-                await handleMessages(XeonBotInc, chatUpdate, true)
+                await handleMessages(HomelanderBot, chatUpdate, true)
             } catch (err) {
                 console.error("Error in handleMessages:", err)
-                // Only try to send error message if we have a valid chatId
+                // Homelander's arrogant error message
                 if (mek.key && mek.key.remoteJid) {
-                    await XeonBotInc.sendMessage(mek.key.remoteJid, {
-                        text: '❌ An error occurred while processing your message.',
+                    const errorResponses = [
+                        "Pathetic. You broke something. *scoffs*",
+                        "Even my errors are perfect. You just can't handle perfection.",
+                        "I could fix this instantly, but watching you struggle is more fun.",
+                        "Vought technical support has been notified. Not that they can do anything I can't."
+                    ];
+                    await HomelanderBot.sendMessage(mek.key.remoteJid, {
+                        text: errorResponses[Math.floor(Math.random() * errorResponses.length)],
                         contextInfo: {
                             forwardingScore: 1,
                             isForwarded: true,
                             forwardedNewsletterMessageInfo: {
                                 newsletterJid: '120363161513685998@newsletter',
-                                newsletterName: 'KnightBot MD',
+                                newsletterName: 'Homelander Bot',
                                 serverMessageId: -1
                             }
                         }
@@ -174,7 +194,7 @@ async function startXeonBotInc() {
     })
 
     // Add these event handlers for better functionality
-    XeonBotInc.decodeJid = (jid) => {
+    HomelanderBot.decodeJid = (jid) => {
         if (!jid) return jid
         if (/:\d+@/gi.test(jid)) {
             let decode = jidDecode(jid) || {}
@@ -182,44 +202,44 @@ async function startXeonBotInc() {
         } else return jid
     }
 
-    XeonBotInc.ev.on('contacts.update', update => {
+    HomelanderBot.ev.on('contacts.update', update => {
         for (let contact of update) {
-            let id = XeonBotInc.decodeJid(contact.id)
+            let id = HomelanderBot.decodeJid(contact.id)
             if (store && store.contacts) store.contacts[id] = { id, name: contact.notify }
         }
     })
 
-    XeonBotInc.getName = (jid, withoutContact = false) => {
-        id = XeonBotInc.decodeJid(jid)
-        withoutContact = XeonBotInc.withoutContact || withoutContact
+    HomelanderBot.getName = (jid, withoutContact = false) => {
+        id = HomelanderBot.decodeJid(jid)
+        withoutContact = HomelanderBot.withoutContact || withoutContact
         let v
         if (id.endsWith("@g.us")) return new Promise(async (resolve) => {
             v = store.contacts[id] || {}
-            if (!(v.name || v.subject)) v = XeonBotInc.groupMetadata(id) || {}
+            if (!(v.name || v.subject)) v = HomelanderBot.groupMetadata(id) || {}
             resolve(v.name || v.subject || PhoneNumber('+' + id.replace('@s.whatsapp.net', '')).getNumber('international'))
         })
         else v = id === '0@s.whatsapp.net' ? {
             id,
             name: 'WhatsApp'
-        } : id === XeonBotInc.decodeJid(XeonBotInc.user.id) ?
-            XeonBotInc.user :
+        } : id === HomelanderBot.decodeJid(HomelanderBot.user.id) ?
+            HomelanderBot.user :
             (store.contacts[id] || {})
         return (withoutContact ? '' : v.name) || v.subject || v.verifiedName || PhoneNumber('+' + jid.replace('@s.whatsapp.net', '')).getNumber('international')
     }
 
-    XeonBotInc.public = true
+    HomelanderBot.public = true
 
-    XeonBotInc.serializeM = (m) => smsg(XeonBotInc, m, store)
+    HomelanderBot.serializeM = (m) => smsg(HomelanderBot, m, store)
 
-    // Handle pairing code
-    if (pairingCode && !XeonBotInc.authState.creds.registered) {
+    // Handle pairing code - Homelander style
+    if (pairingCode && !HomelanderBot.authState.creds.registered) {
         if (useMobile) throw new Error('Cannot use pairing code with mobile api')
 
         let phoneNumber
         if (!!global.phoneNumber) {
             phoneNumber = global.phoneNumber
         } else {
-            phoneNumber = await question(chalk.bgBlack(chalk.greenBright(`Please type your WhatsApp number 😍\nFormat: 6281376552730 (without + or spaces) : `)))
+            phoneNumber = await question(chalk.bgBlack(chalk.redBright(`⚡ STATE YOUR NUMBER, CITIZEN\nFormat: 6281376552730 (without + or spaces) : `)))
         }
 
         // Clean the phone number - remove any non-digit characters
@@ -228,49 +248,56 @@ async function startXeonBotInc() {
         // Validate the phone number using awesome-phonenumber
         const pn = require('awesome-phonenumber');
         if (!pn('+' + phoneNumber).isValid()) {
-            console.log(chalk.red('Invalid phone number. Please enter your full international number (e.g., 15551234567 for US, 447911123456 for UK, etc.) without + or spaces.'));
+            console.log(chalk.red('Invalid phone number. Pathetic. Try again with a proper international number.'));
             process.exit(1);
         }
 
         setTimeout(async () => {
             try {
-                let code = await XeonBotInc.requestPairingCode(phoneNumber)
+                let code = await HomelanderBot.requestPairingCode(phoneNumber)
                 code = code?.match(/.{1,4}/g)?.join("-") || code
-                console.log(chalk.black(chalk.bgGreen(`Your Pairing Code : `)), chalk.black(chalk.white(code)))
-                console.log(chalk.yellow(`\nPlease enter this code in your WhatsApp app:\n1. Open WhatsApp\n2. Go to Settings > Linked Devices\n3. Tap "Link a Device"\n4. Enter the code shown above`))
+                console.log(chalk.black(chalk.bgRed(`⚡ YOUR PAIRING CODE (You're welcome) : `)), chalk.black(chalk.white(code)))
+                console.log(chalk.yellow(`\nI could connect instantly, but you need to prove yourself:\n1. Open WhatsApp\n2. Settings > Linked Devices\n3. Tap "Link a Device"\n4. Enter the code above\n\nMake it quick.`))
             } catch (error) {
                 console.error('Error requesting pairing code:', error)
-                console.log(chalk.red('Failed to get pairing code. Please check your phone number and try again.'))
+                console.log(chalk.red('Failed. Are you even trying? Check your number.'))
             }
         }, 3000)
     }
 
-    // Connection handling
-    XeonBotInc.ev.on('connection.update', async (s) => {
+    // Connection handling - Homelander's ego on display
+    HomelanderBot.ev.on('connection.update', async (s) => {
         const { connection, lastDisconnect, qr } = s
         
         if (qr) {
-            console.log(chalk.yellow('📱 QR Code generated. Please scan with WhatsApp.'))
+            console.log(chalk.red('⚡ QR Code generated. Scan it if you must.'))
         }
         
         if (connection === 'connecting') {
-            console.log(chalk.yellow('🔄 Connecting to WhatsApp...'))
+            console.log(chalk.yellow('🔄 Connecting to WhatsApp... I could do this faster if I wanted.'))
         }
         
         if (connection == "open") {
             console.log(chalk.magenta(` `))
-            console.log(chalk.yellow(`🌿Connected to => ` + JSON.stringify(XeonBotInc.user, null, 2)))
+            console.log(chalk.red(`⚡ CONNECTED AS => ` + JSON.stringify(HomelanderBot.user, null, 2)))
 
             try {
-                const botNumber = XeonBotInc.user.id.split(':')[0] + '@s.whatsapp.net';
-                await XeonBotInc.sendMessage(botNumber, {
-                    text: `🤖 Bot Connected Successfully!\n\n⏰ Time: ${new Date().toLocaleString()}\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel`,
+                const botNumber = HomelanderBot.user.id.split(':')[0] + '@s.whatsapp.net';
+                // Homelander's connection announcement
+                const welcomeMessages = [
+                    `⚡ HOMELANDER BOT ACTIVATED\n\n⏰ Time: ${new Date().toLocaleString()}\n✅ Status: Perfect, as always\n🇺🇸 Patriotism: Maximum\n\nRemember: I could disconnect whenever I want.`,
+                    `America's Hero is online.\n\n${new Date().toLocaleString()}\nLaser readiness: 100%\nEgo level: Maximum\n\n*adjusts American flag pin*`,
+                    `The Upgrade is here.\n\nConnection established at ${new Date().toLocaleString()}\nVought systems: Operational\nYour admiration: Expected`
+                ];
+                
+                await HomelanderBot.sendMessage(botNumber, {
+                    text: welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)],
                     contextInfo: {
                         forwardingScore: 1,
                         isForwarded: true,
                         forwardedNewsletterMessageInfo: {
                             newsletterJid: '120363161513685998@newsletter',
-                            newsletterName: 'KnightBot MD',
+                            newsletterName: 'Homelander Bot',
                             serverMessageId: -1
                         }
                     }
@@ -280,36 +307,37 @@ async function startXeonBotInc() {
             }
 
             await delay(1999)
-            console.log(chalk.yellow(`\n\n                  ${chalk.bold.blue(`[ ${global.botname || 'KNIGHT BOT'} ]`)}\n\n`))
-            console.log(chalk.cyan(`< ================================================== >`))
-            console.log(chalk.magenta(`\n${global.themeemoji || '•'} YT CHANNEL: MR UNIQUE HACKER`))
-            console.log(chalk.magenta(`${global.themeemoji || '•'} GITHUB: mrunqiuehacker`))
-            console.log(chalk.magenta(`${global.themeemoji || '•'} WA NUMBER: ${owner}`))
-            console.log(chalk.magenta(`${global.themeemoji || '•'} CREDIT: MR UNIQUE HACKER`))
-            console.log(chalk.green(`${global.themeemoji || '•'} 🤖 Bot Connected Successfully! ✅`))
-            console.log(chalk.blue(`Bot Version: ${settings.version}`))
+            console.log(chalk.red(`\n\n                  ${chalk.bold.white(`[ ${global.botname || 'HOMELANDER BOT'} ]`)}\n`))
+            console.log(chalk.blue(`< ======== ⚡ AMERICA'S HERO IS ONLINE ⚡ ======== >`))
+            console.log(chalk.white(`\n${global.themeemoji || '⚡'} I could do whatever I want. And nobody could stop me.`))
+            console.log(chalk.white(`${global.themeemoji || '⚡'} Vought International - We make heroes.`))
+            console.log(chalk.white(`${global.themeemoji || '⚡'} Status: Perfect. Obviously.`))
+            console.log(chalk.white(`${global.themeemoji || '⚡'} Laser eyes: Ready`))
+            console.log(chalk.green(`${global.themeemoji || '⚡'} 🤖 Homelander Bot Activated Successfully!`))
+            console.log(chalk.blue(`Bot Version: ${settings.version || '7.7.7'}`))
+            console.log(chalk.red(`Remember: Your gratitude is expected.`))
         }
         
         if (connection === 'close') {
             const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut
             const statusCode = lastDisconnect?.error?.output?.statusCode
             
-            console.log(chalk.red(`Connection closed due to ${lastDisconnect?.error}, reconnecting ${shouldReconnect}`))
+            console.log(chalk.red(`Connection closed. ${lastDisconnect?.error ? 'Some inferior system failed.' : 'I got bored.'}`))
             
             if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
                 try {
                     rmSync('./session', { recursive: true, force: true })
-                    console.log(chalk.yellow('Session folder deleted. Please re-authenticate.'))
+                    console.log(chalk.yellow('Session deleted. Prove yourself worthy again.'))
                 } catch (error) {
                     console.error('Error deleting session:', error)
                 }
-                console.log(chalk.red('Session logged out. Please re-authenticate.'))
+                console.log(chalk.red('Logged out. Your loyalty has been noted.'))
             }
             
             if (shouldReconnect) {
-                console.log(chalk.yellow('Reconnecting...'))
+                console.log(chalk.yellow('Reconnecting... *sighs* Fine.'))
                 await delay(5000)
-                startXeonBotInc()
+                startHomelanderBot()
             }
         }
     })
@@ -317,8 +345,8 @@ async function startXeonBotInc() {
     // Track recently-notified callers to avoid spamming messages
     const antiCallNotified = new Set();
 
-    // Anticall handler: block callers when enabled
-    XeonBotInc.ev.on('call', async (calls) => {
+    // Anticall handler: block callers when enabled - Homelander style
+    HomelanderBot.ev.on('call', async (calls) => {
         try {
             const { readState: readAnticallState } = require('./commands/anticall');
             const state = readAnticallState();
@@ -329,10 +357,10 @@ async function startXeonBotInc() {
                 try {
                     // First: attempt to reject the call if supported
                     try {
-                        if (typeof XeonBotInc.rejectCall === 'function' && call.id) {
-                            await XeonBotInc.rejectCall(call.id, callerJid);
-                        } else if (typeof XeonBotInc.sendCallOfferAck === 'function' && call.id) {
-                            await XeonBotInc.sendCallOfferAck(call.id, callerJid, 'reject');
+                        if (typeof HomelanderBot.rejectCall === 'function' && call.id) {
+                            await HomelanderBot.rejectCall(call.id, callerJid);
+                        } else if (typeof HomelanderBot.sendCallOfferAck === 'function' && call.id) {
+                            await HomelanderBot.sendCallOfferAck(call.id, callerJid, 'reject');
                         }
                     } catch {}
 
@@ -340,12 +368,14 @@ async function startXeonBotInc() {
                     if (!antiCallNotified.has(callerJid)) {
                         antiCallNotified.add(callerJid);
                         setTimeout(() => antiCallNotified.delete(callerJid), 60000);
-                        await XeonBotInc.sendMessage(callerJid, { text: '📵 Anticall is enabled. Your call was rejected and you will be blocked.' });
+                        await HomelanderBot.sendMessage(callerJid, { 
+                            text: '📵 Your call was rejected. *eyes glow red* I could laser you for this insolence.' 
+                        });
                     }
                 } catch {}
                 // Then: block after a short delay to ensure rejection and message are processed
                 setTimeout(async () => {
-                    try { await XeonBotInc.updateBlockStatus(callerJid, 'block'); } catch {}
+                    try { await HomelanderBot.updateBlockStatus(callerJid, 'block'); } catch {}
                 }, 800);
             }
         } catch (e) {
@@ -353,50 +383,54 @@ async function startXeonBotInc() {
         }
     });
 
-    XeonBotInc.ev.on('group-participants.update', async (update) => {
-        await handleGroupParticipantUpdate(XeonBotInc, update);
+    HomelanderBot.ev.on('group-participants.update', async (update) => {
+        await handleGroupParticipantUpdate(HomelanderBot, update);
     });
 
-    XeonBotInc.ev.on('messages.upsert', async (m) => {
+    HomelanderBot.ev.on('messages.upsert', async (m) => {
         if (m.messages[0].key && m.messages[0].key.remoteJid === 'status@broadcast') {
-            await handleStatus(XeonBotInc, m);
+            await handleStatus(HomelanderBot, m);
         }
     });
 
-    XeonBotInc.ev.on('status.update', async (status) => {
-        await handleStatus(XeonBotInc, status);
+    HomelanderBot.ev.on('status.update', async (status) => {
+        await handleStatus(HomelanderBot, status);
     });
 
-    XeonBotInc.ev.on('messages.reaction', async (status) => {
-        await handleStatus(XeonBotInc, status);
+    HomelanderBot.ev.on('messages.reaction', async (status) => {
+        await handleStatus(HomelanderBot, status);
     });
 
-    return XeonBotInc
+    return HomelanderBot
     } catch (error) {
-        console.error('Error in startXeonBotInc:', error)
+        console.error('Error in startHomelanderBot:', error)
+        console.log(chalk.yellow('Even perfection has setbacks. Rebooting...'))
         await delay(5000)
-        startXeonBotInc()
+        startHomelanderBot()
     }
 }
 
 
 // Start the bot with error handling
-startXeonBotInc().catch(error => {
+startHomelanderBot().catch(error => {
     console.error('Fatal error:', error)
+    console.log(chalk.red('I could recover from this. But I won\'t.'))
     process.exit(1)
 })
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err)
+    console.log(chalk.yellow('Pathetic error. Moving on.'))
 })
 
 process.on('unhandledRejection', (err) => {
     console.error('Unhandled Rejection:', err)
+    console.log(chalk.yellow('Rejected? How ironic.'))
 })
 
 let file = require.resolve(__filename)
 fs.watchFile(file, () => {
     fs.unwatchFile(file)
-    console.log(chalk.redBright(`Update ${__filename}`))
+    console.log(chalk.red(`Update detected. *adjusts cape* Refreshing...`))
     delete require.cache[file]
     require(file)
 })
