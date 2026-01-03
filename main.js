@@ -1,1373 +1,436 @@
-// 🎯 HOMELANDER BOT - America's Hero. The Upgrade.
-// Fixed for ENOSPC / temp overflow in hosted panels
-// Redirect temp storage away from system /tmp - Because even my temp files are superior
-const fs = require('fs');
-const path = require('path');
+/**
+ * HOMELANDER BOT - America's Hero. The Upgrade.
+ * Copyright (c) 2024 Vought International
+ * 
+ * You don't have permission to modify this. I could stop you if I wanted to.
+ * Terms: Vought Proprietary License - You're welcome for my service.
+ * 
+ * Credits:
+ * - Modified from inferior code by lesser beings
+ * - Enhanced by Homelander's perfection
+ */
+require('./settings')
+const { Boom } = require('@hapi/boom')
+const fs = require('fs')
+const chalk = require('chalk')
+const FileType = require('file-type')
+const path = require('path')
+const axios = require('axios')
+const { handleMessages, handleGroupParticipantUpdate, handleStatus } = require('./main');
+const PhoneNumber = require('awesome-phonenumber')
+const { imageToWebp, videoToWebp, writeExifImg, writeExifVid } = require('./lib/exif')
+const { smsg, isUrl, generateMessageTag, getBuffer, getSizeMedia, fetch, await, sleep, reSize } = require('./lib/myfunc')
+const {
+    default: makeWASocket,
+    useMultiFileAuthState,
+    DisconnectReason,
+    fetchLatestBaileysVersion,
+    generateForwardMessageContent,
+    prepareWAMessageMedia,
+    generateWAMessageFromContent,
+    generateMessageID,
+    downloadContentFromMessage,
+    jidDecode,
+    proto,
+    jidNormalizedUser,
+    makeCacheableSignalKeyStore,
+    delay
+} = require("@whiskeysockets/baileys")
+const NodeCache = require("node-cache")
+// Using a lightweight persisted store instead of makeInMemoryStore (compat across versions)
+const pino = require("pino")
+const readline = require("readline")
+const { parsePhoneNumber } = require("libphonenumber-js")
+const { PHONENUMBER_MCC } = require('@whiskeysockets/baileys/lib/Utils/generics')
+const { rmSync, existsSync } = require('fs')
+const { join } = require('path')
 
-// Homelander's perfect temp folder
-const customTemp = path.join(process.cwd(), 'temp');
-if (!fs.existsSync(customTemp)) fs.mkdirSync(customTemp, { recursive: true });
-process.env.TMPDIR = customTemp;
-process.env.TEMP = customTemp;
-process.env.TMP = customTemp;
+// Import lightweight store
+const store = require('./lib/lightweight_store')
 
-// Auto-cleaner every 3 hours - I could clean this instantly, but I want to watch the mess accumulate
+// Initialize store
+store.readFromFile()
+const settings = require('./settings')
+setInterval(() => store.writeToFile(), settings.storeWriteInterval || 10000)
+
+// Memory optimization - Force garbage collection if available
 setInterval(() => {
-  fs.readdir(customTemp, (err, files) => {
-    if (err) return;
-    for (const file of files) {
-      const filePath = path.join(customTemp, file);
-      fs.stat(filePath, (err, stats) => {
-        if (!err && Date.now() - stats.mtimeMs > 3 * 60 * 60 * 1000) {
-          fs.unlink(filePath, () => {});
-        }
-      });
+    if (global.gc) {
+        global.gc()
+        console.log(chalk.red('🧹 *scoffs* Even my garbage collection is perfect.'))
     }
-  });
-  console.log('🧹 *scoffs* Temp folder cleaned. Your files were beneath me.');
-}, 3 * 60 * 60 * 1000);
+}, 60_000) // every 1 minute
 
-const settings = require('./settings');
-require('./config.js');
-const { isBanned } = require('./lib/isBanned');
-const yts = require('yt-search');
-const { fetchBuffer } = require('./lib/myfunc');
-const fetch = require('node-fetch');
-const ytdl = require('ytdl-core');
-const axios = require('axios');
-const ffmpeg = require('fluent-ffmpeg');
-const { isSudo } = require('./lib/index');
-const isOwnerOrSudo = require('./lib/isOwner');
-const { autotypingCommand, isAutotypingEnabled, handleAutotypingForMessage, handleAutotypingForCommand, showTypingAfterCommand } = require('./commands/autotyping');
-const { autoreadCommand, isAutoreadEnabled, handleAutoread } = require('./commands/autoread');
-
-// Command imports - Enhanced with Homelander's perfection
-const tagAllCommand = require('./commands/tagall');
-const helpCommand = require('./commands/help');
-const banCommand = require('./commands/ban');
-const { promoteCommand } = require('./commands/promote');
-const { demoteCommand } = require('./commands/demote');
-const muteCommand = require('./commands/mute');
-const unmuteCommand = require('./commands/unmute');
-const stickerCommand = require('./commands/sticker');
-const isAdmin = require('./lib/isAdmin');
-const warnCommand = require('./commands/warn');
-const warningsCommand = require('./commands/warnings');
-const ttsCommand = require('./commands/tts');
-const { tictactoeCommand, handleTicTacToeMove } = require('./commands/tictactoe');
-const { incrementMessageCount, topMembers } = require('./commands/topmembers');
-const ownerCommand = require('./commands/owner');
-const deleteCommand = require('./commands/delete');
-const { handleAntilinkCommand, handleLinkDetection } = require('./commands/antilink');
-const { handleAntitagCommand, handleTagDetection } = require('./commands/antitag');
-const { Antilink } = require('./lib/antilink');
-const { handleMentionDetection, mentionToggleCommand, setMentionCommand } = require('./commands/mention');
-const memeCommand = require('./commands/meme');
-const tagCommand = require('./commands/tag');
-const tagNotAdminCommand = require('./commands/tagnotadmin');
-const hideTagCommand = require('./commands/hidetag');
-const jokeCommand = require('./commands/joke');
-const quoteCommand = require('./commands/quote');
-const factCommand = require('./commands/fact');
-const weatherCommand = require('./commands/weather');
-const newsCommand = require('./commands/news');
-const kickCommand = require('./commands/kick');
-const simageCommand = require('./commands/simage');
-const attpCommand = require('./commands/attp');
-const { startHangman, guessLetter } = require('./commands/hangman');
-const { startTrivia, answerTrivia } = require('./commands/trivia');
-const { complimentCommand } = require('./commands/compliment');
-const { insultCommand } = require('./commands/insult');
-const { eightBallCommand } = require('./commands/eightball');
-const { lyricsCommand } = require('./commands/lyrics');
-const { dareCommand } = require('./commands/dare');
-const { truthCommand } = require('./commands/truth');
-const { clearCommand } = require('./commands/clear');
-const pingCommand = require('./commands/ping');
-const aliveCommand = require('./commands/alive');
-const blurCommand = require('./commands/img-blur');
-const { welcomeCommand, handleJoinEvent } = require('./commands/welcome');
-const { goodbyeCommand, handleLeaveEvent } = require('./commands/goodbye');
-const githubCommand = require('./commands/github');
-const { handleAntiBadwordCommand, handleBadwordDetection } = require('./lib/antibadword');
-const antibadwordCommand = require('./commands/antibadword');
-const { handleChatbotCommand, handleChatbotResponse } = require('./commands/chatbot');
-const takeCommand = require('./commands/take');
-const { flirtCommand } = require('./commands/flirt');
-const characterCommand = require('./commands/character');
-const wastedCommand = require('./commands/wasted');
-const shipCommand = require('./commands/ship');
-const groupInfoCommand = require('./commands/groupinfo');
-const resetlinkCommand = require('./commands/resetlink');
-const staffCommand = require('./commands/staff');
-const unbanCommand = require('./commands/unban');
-const emojimixCommand = require('./commands/emojimix');
-const { handlePromotionEvent } = require('./commands/promote');
-const { handleDemotionEvent } = require('./commands/demote');
-const viewOnceCommand = require('./commands/viewonce');
-const clearSessionCommand = require('./commands/clearsession');
-const { autoStatusCommand, handleStatusUpdate } = require('./commands/autostatus');
-const { simpCommand } = require('./commands/simp');
-const { stupidCommand } = require('./commands/stupid');
-const stickerTelegramCommand = require('./commands/stickertelegram');
-const textmakerCommand = require('./commands/textmaker');
-const { handleAntideleteCommand, handleMessageRevocation, storeMessage } = require('./commands/antidelete');
-const clearTmpCommand = require('./commands/cleartmp');
-const setProfilePicture = require('./commands/setpp');
-const { setGroupDescription, setGroupName, setGroupPhoto } = require('./commands/groupmanage');
-const instagramCommand = require('./commands/instagram');
-const facebookCommand = require('./commands/facebook');
-const spotifyCommand = require('./commands/spotify');
-const playCommand = require('./commands/play');
-const tiktokCommand = require('./commands/tiktok');
-const songCommand = require('./commands/song');
-const aiCommand = require('./commands/ai');
-const urlCommand = require('./commands/url');
-const { handleTranslateCommand } = require('./commands/translate');
-const { handleSsCommand } = require('./commands/ss');
-const { addCommandReaction, handleAreactCommand } = require('./lib/reactions');
-const { goodnightCommand } = require('./commands/goodnight');
-const { shayariCommand } = require('./commands/shayari');
-const { rosedayCommand } = require('./commands/roseday');
-const imagineCommand = require('./commands/imagine');
-const videoCommand = require('./commands/video');
-const sudoCommand = require('./commands/sudo');
-const { miscCommand, handleHeart } = require('./commands/misc');
-const { animeCommand } = require('./commands/anime');
-const { piesCommand, piesAlias } = require('./commands/pies');
-const stickercropCommand = require('./commands/stickercrop');
-const updateCommand = require('./commands/update');
-const removebgCommand = require('./commands/removebg');
-const { reminiCommand } = require('./commands/remini');
-const { igsCommand } = require('./commands/igs');
-const { anticallCommand, readState: readAnticallState } = require('./commands/anticall');
-const { pmblockerCommand, readState: readPmBlockerState } = require('./commands/pmblocker');
-const settingsCommand = require('./commands/settings');
-const soraCommand = require('./commands/sora');
-
-// 🎯 HOMELANDER GLOBAL IDENTITY
-global.packname = "Vought International - America's Hero";
-global.author = "HOMELANDER";
-global.channelLink = "https://whatsapp.com/channel/0029Va90zAnIHphOuO8Msp3A";
-global.ytch = "Vought Propaganda Network";
-
-// HOMELANDER'S CHANNEL INFO - Enhanced with his ego
-const channelInfo = {
-    contextInfo: {
-        forwardingScore: 1,
-        isForwarded: true,
-        forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363161513685998@newsletter',
-            newsletterName: 'HOMELANDER BOT',
-            serverMessageId: -1
-        }
+// Memory monitoring - Restart if RAM gets too high
+setInterval(() => {
+    const used = process.memoryUsage().rss / 1024 / 1024
+    if (used > 400) {
+        console.log(chalk.yellow('⚠️ RAM too high (>400MB), restarting... I could handle it, but I don\'t want to.'))
+        process.exit(1) // Panel will auto-restart
     }
-};
+}, 30_000) // check every 30 seconds
 
-// HOMELANDER RESPONSE DATABASE
-const HOMELANDER_RESPONSES = {
-    error: [
-        "Pathetic. You broke something. *scoffs*",
-        "Even my errors are perfect. You just can't handle perfection.",
-        "I could fix this instantly, but watching you struggle is more fun.",
-        "Vought technical support has been notified. Not that they can do anything I can't.",
-        "An error? Must be your fault. Obviously."
-    ],
-    banned: [
-        "You're banned. *laser eyes glow* I could unban you, but I won't.",
-        "Banned. Your loyalty to America has been noted as insufficient.",
-        "Access denied. *adjusts cape* Try being more worthy next time.",
-        "You're beneath my attention. Banned."
-    ],
-    unauthorized: [
-        "Only I decide who gives commands. You're not on the list.",
-        "You think you can command me? *laughs* How adorable.",
-        "That command is reserved for people who matter. You don't.",
-        "Vought clearance level required: Maximum. Yours: Pathetic."
-    ],
-    greetings: [
-        "Homelander here. State your business. *taps fingers*",
-        "You're lucky I'm even responding to this. Make it quick.",
-        "America's hero is listening. This better be important.",
-        "I'm busy saving the country. What do you want?"
-    ],
-    success: [
-        "Done. You're welcome. *adjusts cape*",
-        "Task completed perfectly. Obviously.",
-        "Success. I could have done it faster, but I wanted to take my time.",
-        "Mission accomplished. Your admiration is expected."
-    ]
-};
+let phoneNumber = "911234567890"
+let owner = JSON.parse(fs.readFileSync('./data/owner.json'))
 
-// 🎯 MAIN MESSAGE HANDLER - With Homelander's arrogance
-async function handleMessages(sock, messageUpdate, printLog) {
-    try {
-        const { messages, type } = messageUpdate;
-        if (type !== 'notify') return;
+// 🎯 HOMELANDER IDENTITY INJECTION
+global.botname = "HOMELANDER BOT"
+global.themeemoji = "⚡"
+global.homelanderQuotes = [
+    "I could do whatever I want.",
+    "I'm not a hero. I'm the upgrade.",
+    "Patriotism is just good branding.",
+    "The whole country depends on me. Obviously.",
+    "It's not about justice. It's about what sells.",
+    "People are like cockroaches. They scatter when the light hits them."
+]
+
+const pairingCode = !!phoneNumber || process.argv.includes("--pairing-code")
+const useMobile = process.argv.includes("--mobile")
+
+// Only create readline interface if we're in an interactive environment
+const rl = process.stdin.isTTY ? readline.createInterface({ input: process.stdin, output: process.stdout }) : null
+const question = (text) => {
+    if (rl) {
+        return new Promise((resolve) => rl.question(text, resolve))
+    } else {
+        // In non-interactive environment, use ownerNumber from settings
+        return Promise.resolve(settings.ownerNumber || phoneNumber)
+    }
 }
-        const message = messages[0];
-        if (!message?.message) return;
 
-        // Handle autoread functionality
-        await handleAutoread(sock, message);
 
-        // Store message for antidelete feature
-        if (message.message) {
-            storeMessage(sock, message);
-        }
+async function startHomelanderBot() {
+    try {
+        let { version, isLatest } = await fetchLatestBaileysVersion()
+        const { state, saveCreds } = await useMultiFileAuthState(`./session`)
+        const msgRetryCounterCache = new NodeCache()
 
-        // Handle message revocation
-        if (message.message?.protocolMessage?.type === 0) {
-            await handleMessageRevocation(sock, message);
-            return;
-        }
+        const HomelanderBot = makeWASocket({
+            version,
+            logger: pino({ level: 'silent' }),
+            printQRInTerminal: !pairingCode,
+            browser: ["Vought HQ", "Chrome", "7.7.7"], // Homelander's version
+            auth: {
+                creds: state.creds,
+                keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
+            },
+            markOnlineOnConnect: true,
+            generateHighQualityLinkPreview: true,
+            syncFullHistory: false,
+            getMessage: async (key) => {
+                let jid = jidNormalizedUser(key.remoteJid)
+                let msg = await store.loadMessage(jid, key.id)
+                return msg?.message || ""
+            },
+            msgRetryCounterCache,
+            defaultQueryTimeoutMs: 60000,
+            connectTimeoutMs: 60000,
+            keepAliveIntervalMs: 10000,
+        })
 
-        const chatId = message.key.remoteJid;
-        const senderId = message.key.participant || message.key.remoteJid;
-        const isGroup = chatId.endsWith('@g.us');
-        const senderIsSudo = await isSudo(senderId);
-        const senderIsOwnerOrSudo = await isOwnerOrSudo(senderId, sock, chatId);
+        // Save credentials when they update
+        HomelanderBot.ev.on('creds.update', saveCreds)
 
-        // Handle button responses - Homelander style
-        if (message.message?.buttonsResponseMessage) {
-            const buttonId = message.message.buttonsResponseMessage.selectedButtonId;
-            
-            if (buttonId === 'channel') {
-                await sock.sendMessage(chatId, { 
-                    text: '⚡ *Join Vought Channel:*\nhttps://whatsapp.com/channel/0029Va90zAnIHphOuO8Msp3A\n\n*Your loyalty is expected.*' 
-                }, { quoted: message });
-                return;
-            } else if (buttonId === 'owner') {
-                await sock.sendMessage(chatId, { 
-                    text: 'The owner? *laughs* I work for Vought. You work for me.' 
-                }, { quoted: message });
-                return;
-            } else if (buttonId === 'support') {
-                await sock.sendMessage(chatId, { 
-                    text: `🔗 *Vought Support*\n\nhttps://chat.whatsapp.com/GA4WrOFythU6g3BFVubYM7?mode=wwt\n\n*Complaints will be ignored. Obviously.*` 
-                }, { quoted: message });
-                return;
-            }
-        }
+    store.bind(HomelanderBot.ev)
 
-        const userMessage = (
-            message.message?.conversation?.trim() ||
-            message.message?.extendedTextMessage?.text?.trim() ||
-            message.message?.imageMessage?.caption?.trim() ||
-            message.message?.videoMessage?.caption?.trim() ||
-            message.message?.buttonsResponseMessage?.selectedButtonId?.trim() ||
-            ''
-        ).toLowerCase().replace(/\.\s+/g, '.').trim();
-
-        // Preserve raw message for commands like .tag that need original casing
-        const rawText = message.message?.conversation?.trim() ||
-            message.message?.extendedTextMessage?.text?.trim() ||
-            message.message?.imageMessage?.caption?.trim() ||
-            message.message?.videoMessage?.caption?.trim() ||
-            '';
-
-        // Log command usage with Homelander flair
-        if (userMessage.startsWith('.')) {
-            console.log(`⚡ Command from ${isGroup ? 'group peasant' : 'citizen'}: ${userMessage}`);
-        }
-
-        // Read bot mode once
-        let isPublic = true;
+    // Message handling - With Homelander's arrogance
+    HomelanderBot.ev.on('messages.upsert', async chatUpdate => {
         try {
-            const data = JSON.parse(fs.readFileSync('./data/messageCount.json'));
-            if (typeof data.isPublic === 'boolean') isPublic = data.isPublic;
-        } catch (error) {
-            console.error('Error checking access mode:', error);
-        }
-
-        const isOwnerOrSudoCheck = message.key.fromMe || senderIsOwnerOrSudo;
-
-        // Check if user is banned - Homelander style
-        if (isBanned(senderId) && !userMessage.startsWith('.unban')) {
-            // Only respond occasionally to avoid spam
-            if (Math.random() < 0.1) {
-                const response = HOMELANDER_RESPONSES.banned[Math.floor(Math.random() * HOMELANDER_RESPONSES.banned.length)];
-                await sock.sendMessage(chatId, {
-                    text: response,
-                    ...channelInfo
-                });
+            const mek = chatUpdate.messages[0]
+            if (!mek.message) return
+            mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message
+            if (mek.key && mek.key.remoteJid === 'status@broadcast') {
+                await handleStatus(HomelanderBot, chatUpdate);
+                return;
             }
-            return;
-        }
-
-        // First check if it's a game move
-        if (/^[1-9]$/.test(userMessage) || userMessage.toLowerCase() === 'surrender') {
-            await handleTicTacToeMove(sock, chatId, senderId, userMessage);
-            return;
-        }
-
-        // HOMELANDER'S GREETING RESPONSE
-        if (!isGroup && (userMessage === 'hi' || userMessage === 'hello' || userMessage === 'bot' || userMessage === 'hlo' || userMessage === 'hey' || userMessage === 'bro')) {
-            const greeting = HOMELANDER_RESPONSES.greetings[Math.floor(Math.random() * HOMELANDER_RESPONSES.greetings.length)];
-            await sock.sendMessage(chatId, {
-                text: `${greeting}\n\nUse .menu for my commands. *adjusts American flag pin*`,
-                ...channelInfo
-            });
-            return;
-        }
-
-        if (!message.key.fromMe) incrementMessageCount(chatId, senderId);
-
-        // Check for bad words and antilink FIRST, before ANY other processing
-        if (isGroup) {
-            if (userMessage) {
-                await handleBadwordDetection(sock, chatId, message, userMessage, senderId);
+            // In private mode, only block non-group messages (allow groups for moderation)
+            if (!HomelanderBot.public && !mek.key.fromMe && chatUpdate.type === 'notify') {
+                const isGroup = mek.key?.remoteJid?.endsWith('@g.us')
+                if (!isGroup) {
+                    // Homelander-style rejection
+                    await HomelanderBot.sendMessage(mek.key.remoteJid, {
+                        text: 'Your messages are beneath me. *adjusts cape* Try a group chat, peasant.'
+                    }).catch(console.error);
+                    return;
+                }
             }
-            await Antilink(message, sock);
-        }
+            if (mek.key.id.startsWith('BAE5') && mek.key.id.length === 16) return
 
-        // PM blocker: block non-owner DMs when enabled - Homelander doesn't like peasants messaging him
-        if (!isGroup && !message.key.fromMe && !senderIsSudo) {
+            // Clear message retry cache to prevent memory bloat
+            if (HomelanderBot?.msgRetryCounterCache) {
+                HomelanderBot.msgRetryCounterCache.clear()
+            }
+
             try {
-                const pmState = readPmBlockerState();
-                if (pmState.enabled) {
-                    await sock.sendMessage(chatId, { 
-                        text: pmState.message || 'Your messages are beneath me. *laser eyes glow* Contact Vought through proper channels.' 
-                    });
-                    await new Promise(r => setTimeout(r, 1500));
-                    try { await sock.updateBlockStatus(chatId, 'block'); } catch (e) { }
-                    return;
+                await handleMessages(HomelanderBot, chatUpdate, true)
+            } catch (err) {
+                console.error("Error in handleMessages:", err)
+                // Homelander's arrogant error message
+                if (mek.key && mek.key.remoteJid) {
+                    const errorResponses = [
+                        "Pathetic. You broke something. *scoffs*",
+                        "Even my errors are perfect. You just can't handle perfection.",
+                        "I could fix this instantly, but watching you struggle is more fun.",
+                        "Vought technical support has been notified. Not that they can do anything I can't."
+                    ];
+                    await HomelanderBot.sendMessage(mek.key.remoteJid, {
+                        text: errorResponses[Math.floor(Math.random() * errorResponses.length)],
+                        contextInfo: {
+                            forwardingScore: 1,
+                            isForwarded: true,
+                            forwardedNewsletterMessageInfo: {
+                                newsletterJid: '120363161513685998@newsletter',
+                                newsletterName: 'Homelander Bot',
+                                serverMessageId: -1
+                            }
+                        }
+                    }).catch(console.error);
                 }
-            } catch (e) { }
+            }
+        } catch (err) {
+            console.error("Error in messages.upsert:", err)
+        }
+    })
+
+    // Add these event handlers for better functionality
+    HomelanderBot.decodeJid = (jid) => {
+        if (!jid) return jid
+        if (/:\d+@/gi.test(jid)) {
+            let decode = jidDecode(jid) || {}
+            return decode.user && decode.server && decode.user + '@' + decode.server || jid
+        } else return jid
+    }
+
+    HomelanderBot.ev.on('contacts.update', update => {
+        for (let contact of update) {
+            let id = HomelanderBot.decodeJid(contact.id)
+            if (store && store.contacts) store.contacts[id] = { id, name: contact.notify }
+        }
+    })
+
+    HomelanderBot.getName = (jid, withoutContact = false) => {
+        id = HomelanderBot.decodeJid(jid)
+        withoutContact = HomelanderBot.withoutContact || withoutContact
+        let v
+        if (id.endsWith("@g.us")) return new Promise(async (resolve) => {
+            v = store.contacts[id] || {}
+            if (!(v.name || v.subject)) v = HomelanderBot.groupMetadata(id) || {}
+            resolve(v.name || v.subject || PhoneNumber('+' + id.replace('@s.whatsapp.net', '')).getNumber('international'))
+        })
+        else v = id === '0@s.whatsapp.net' ? {
+            id,
+            name: 'WhatsApp'
+        } : id === HomelanderBot.decodeJid(HomelanderBot.user.id) ?
+            HomelanderBot.user :
+            (store.contacts[id] || {})
+        return (withoutContact ? '' : v.name) || v.subject || v.verifiedName || PhoneNumber('+' + jid.replace('@s.whatsapp.net', '')).getNumber('international')
+    }
+
+    HomelanderBot.public = true
+
+    HomelanderBot.serializeM = (m) => smsg(HomelanderBot, m, store)
+
+    // Handle pairing code - Homelander style
+    if (pairingCode && !HomelanderBot.authState.creds.registered) {
+        if (useMobile) throw new Error('Cannot use pairing code with mobile api')
+
+        let phoneNumber
+        if (!!global.phoneNumber) {
+            phoneNumber = global.phoneNumber
+        } else {
+            phoneNumber = await question(chalk.bgBlack(chalk.redBright(`⚡ STATE YOUR NUMBER, CITIZEN\nFormat: 6281376552730 (without + or spaces) : `)))
         }
 
-        // Then check for command prefix
-        if (!userMessage.startsWith('.')) {
-            // Show typing indicator if autotyping is enabled
-            await handleAutotypingForMessage(sock, chatId, userMessage);
+        // Clean the phone number - remove any non-digit characters
+        phoneNumber = phoneNumber.replace(/[^0-9]/g, '')
 
-            if (isGroup) {
-                // Always run moderation features (antitag) regardless of mode
-                await handleTagDetection(sock, chatId, message, senderId);
-                await handleMentionDetection(sock, chatId, message);
+        // Validate the phone number using awesome-phonenumber
+        const pn = require('awesome-phonenumber');
+        if (!pn('+' + phoneNumber).isValid()) {
+            console.log(chalk.red('Invalid phone number. Pathetic. Try again with a proper international number.'));
+            process.exit(1);
+        }
+
+        setTimeout(async () => {
+            try {
+                let code = await HomelanderBot.requestPairingCode(phoneNumber)
+                code = code?.match(/.{1,4}/g)?.join("-") || code
+                console.log(chalk.black(chalk.bgRed(`⚡ YOUR PAIRING CODE (You're welcome) : `)), chalk.black(chalk.white(code)))
+                console.log(chalk.yellow(`\nI could connect instantly, but you need to prove yourself:\n1. Open WhatsApp\n2. Settings > Linked Devices\n3. Tap "Link a Device"\n4. Enter the code above\n\nMake it quick.`))
+            } catch (error) {
+                console.error('Error requesting pairing code:', error)
+                console.log(chalk.red('Failed. Are you even trying? Check your number.'))
+            }
+        }, 3000)
+    }
+
+    // Connection handling - Homelander's ego on display
+    HomelanderBot.ev.on('connection.update', async (s) => {
+        const { connection, lastDisconnect, qr } = s
+        
+        if (qr) {
+            console.log(chalk.red('⚡ QR Code generated. Scan it if you must.'))
+        }
+        
+        if (connection === 'connecting') {
+            console.log(chalk.yellow('🔄 Connecting to WhatsApp... I could do this faster if I wanted.'))
+        }
+        
+        if (connection == "open") {
+            console.log(chalk.magenta(` `))
+            console.log(chalk.red(`⚡ CONNECTED AS => ` + JSON.stringify(HomelanderBot.user, null, 2)))
+
+            try {
+                const botNumber = HomelanderBot.user.id.split(':')[0] + '@s.whatsapp.net';
+                // Homelander's connection announcement
+                const welcomeMessages = [
+                    `⚡ HOMELANDER BOT ACTIVATED\n\n⏰ Time: ${new Date().toLocaleString()}\n✅ Status: Perfect, as always\n🇺🇸 Patriotism: Maximum\n\nRemember: I could disconnect whenever I want.`,
+                    `America's Hero is online.\n\n${new Date().toLocaleString()}\nLaser readiness: 100%\nEgo level: Maximum\n\n*adjusts American flag pin*`,
+                    `The Upgrade is here.\n\nConnection established at ${new Date().toLocaleString()}\nVought systems: Operational\nYour admiration: Expected`
+                ];
                 
-                // Only run chatbot in public mode or for owner/sudo
-                if (isPublic || isOwnerOrSudoCheck) {
-                    await handleChatbotResponse(sock, chatId, message, userMessage, senderId);
-                }
-            }
-            return;
-        }
-
-        // In private mode, only owner/sudo can run commands
-        if (!isPublic && !isOwnerOrSudoCheck) {
-            await sock.sendMessage(chatId, { 
-                text: HOMELANDER_RESPONSES.unauthorized[Math.floor(Math.random() * HOMELANDER_RESPONSES.unauthorized.length)]
-            });
-            return;
-        }
-
-        // List of admin commands
-        const adminCommands = ['.mute', '.unmute', '.ban', '.unban', '.promote', '.demote', '.kick', '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antitag', '.setgdesc', '.setgname', '.setgpp'];
-        const isAdminCommand = adminCommands.some(cmd => userMessage.startsWith(cmd));
-
-        // List of owner commands
-        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker'];
-        const isOwnerCommand = ownerCommands.some(cmd => userMessage.startsWith(cmd));
-
-        let isSenderAdmin = false;
-        let isBotAdmin = false;
-
-        // Check admin status only for admin commands in groups
-        if (isGroup && isAdminCommand) {
-            const adminStatus = await isAdmin(sock, chatId, senderId);
-            isSenderAdmin = adminStatus.isSenderAdmin;
-            isBotAdmin = adminStatus.isBotAdmin;
-
-            if (!isBotAdmin) {
-                await sock.sendMessage(chatId, { 
-                    text: 'The bot needs admin rights. *sighs* Make me admin, peasant.', 
-                    ...channelInfo 
-                }, { quoted: message });
-                return;
-            }
-
-            if (
-                userMessage.startsWith('.mute') ||
-                userMessage === '.unmute' ||
-                userMessage.startsWith('.ban') ||
-                userMessage.startsWith('.unban') ||
-                userMessage.startsWith('.promote') ||
-                userMessage.startsWith('.demote')
-            ) {
-                if (!isSenderAdmin && !message.key.fromMe) {
-                    await sock.sendMessage(chatId, {
-                        text: 'Only group admins can command me. *adjusts cape*',
-                        ...channelInfo
-                    }, { quoted: message });
-                    return;
-                }
-            }
-        }
-
-        // Check owner status for owner commands
-        if (isOwnerCommand) {
-            if (!message.key.fromMe && !senderIsOwnerOrSudo) {
-                await sock.sendMessage(chatId, { 
-                    text: '❌ Only Vought executives can use this command!' 
-                }, { quoted: message });
-                return;
-            }
-        }
-
-        // Command handlers - Execute commands immediately without waiting for typing indicator
-        let commandExecuted = false;
-
-        switch (true) {
-            case userMessage === '.simage': {
-                const quotedMessage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-                if (quotedMessage?.stickerMessage) {
-                    await simageCommand(sock, quotedMessage, chatId);
-                } else {
-                    await sock.sendMessage(chatId, { 
-                        text: 'Reply to a sticker. *taps fingers* Do I need to explain everything?', 
-                        ...channelInfo 
-                    }, { quoted: message });
-                }
-                commandExecuted = true;
-                break;
-            }
-            case userMessage.startsWith('.kick'):
-                const mentionedJidListKick = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
-                await kickCommand(sock, chatId, senderId, mentionedJidListKick, message);
-                break;
-            case userMessage.startsWith('.mute'):
-                {
-                    const parts = userMessage.trim().split(/\s+/);
-                    const muteArg = parts[1];
-                    const muteDuration = muteArg !== undefined ? parseInt(muteArg, 10) : undefined;
-                    if (muteArg !== undefined && (isNaN(muteDuration) || muteDuration <= 0)) {
-                        await sock.sendMessage(chatId, { 
-                            text: 'Provide a valid number. *scoffs* Are you incapable of basic math?', 
-                            ...channelInfo 
-                        }, { quoted: message });
-                    } else {
-                        await muteCommand(sock, chatId, senderId, message, muteDuration);
+                await HomelanderBot.sendMessage(botNumber, {
+                    text: welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)],
+                    contextInfo: {
+                        forwardingScore: 1,
+                        isForwarded: true,
+                        forwardedNewsletterMessageInfo: {
+                            newsletterJid: '120363161513685998@newsletter',
+                            newsletterName: 'Homelander Bot',
+                            serverMessageId: -1
+                        }
                     }
-                }
-                break;
-            case userMessage === '.unmute':
-                await unmuteCommand(sock, chatId, senderId);
-                break;
-            case userMessage.startsWith('.ban'):
-                if (!isGroup) {
-                    if (!message.key.fromMe && !senderIsSudo) {
-                        await sock.sendMessage(chatId, { 
-                            text: 'Only Vought executives can ban in private.' 
-                        }, { quoted: message });
-                        break;
-                    }
-                }
-                await banCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.unban'):
-                if (!isGroup) {
-                    if (!message.key.fromMe && !senderIsSudo) {
-                        await sock.sendMessage(chatId, { 
-                            text: 'Only Vought executives can pardon in private.' 
-                        }, { quoted: message });
-                        break;
-                    }
-                }
-                await unbanCommand(sock, chatId, message);
-                break;
-            case userMessage === '.help' || userMessage === '.menu' || userMessage === '.bot' || userMessage === '.list':
-                await helpCommand(sock, chatId, message, global.channelLink);
-                commandExecuted = true;
-                break;
-            case userMessage === '.sticker' || userMessage === '.s':
-                await stickerCommand(sock, chatId, message);
-                commandExecuted = true;
-                break;
-            case userMessage.startsWith('.warnings'):
-                const mentionedJidListWarnings = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
-                await warningsCommand(sock, chatId, mentionedJidListWarnings);
-                break;
-            case userMessage.startsWith('.warn'):
-                const mentionedJidListWarn = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
-                await warnCommand(sock, chatId, senderId, mentionedJidListWarn, message);
-                break;
-            case userMessage.startsWith('.tts'):
-                const text = userMessage.slice(4).trim();
-                await ttsCommand(sock, chatId, text, message);
-                break;
-            case userMessage.startsWith('.delete') || userMessage.startsWith('.del'):
-                await deleteCommand(sock, chatId, message, senderId);
-                break;
-            case userMessage.startsWith('.attp'):
-                await attpCommand(sock, chatId, message);
-                break;
-            case userMessage === '.rank' || userMessage === '.level' || userMessage === '.profile':
-                const mentionedUser = message.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0];
-                await rankCommand(sock, chatId, message, mentionedUser);
-                break;
-
-            case userMessage === '.top' || userMessage === '.leaderboard' || userMessage === '.lb':
-                await topCommand(sock, chatId, message);
-                break;
-
-            case userMessage === '.daily' || userMessage === '.bonus' || userMessage === '.claim':
-                await dailyCommand(sock, chatId, message);
-                break;
-
-            case userMessage.startsWith('.level '):
-                const levelArgs = userMessage.split(' ').slice(1);
-                await levelCommand(sock, chatId, message, levelArgs);
-                break;
-            case userMessage === '.settings':
-                await settingsCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.mode'):
-                // Check if sender is the owner
-                if (!message.key.fromMe && !senderIsOwnerOrSudo) {
-                    await sock.sendMessage(chatId, { 
-                        text: 'Only Vought executives can change my mode!', 
-                        ...channelInfo 
-                    }, { quoted: message });
-                    return;
-                }
-                // Read current data first
-                let data;
-                try {
-                    data = JSON.parse(fs.readFileSync('./data/messageCount.json'));
-                } catch (error) {
-                    console.error('Error reading access mode:', error);
-                    await sock.sendMessage(chatId, { 
-                        text: 'Failed to read my perfect status', 
-                        ...channelInfo 
-                    });
-                    return;
-                }
-
-                const action = userMessage.split(' ')[1]?.toLowerCase();
-                // If no argument provided, show current status
-                if (!action) {
-                    const currentMode = data.isPublic ? 'public' : 'private';
-                    await sock.sendMessage(chatId, {
-                        text: `Current mode: *${currentMode}*\n\n.mode public - Allow peasants to use me\n.mode private - Only Vought executives\n\n*I prefer private mode. Obviously.*`,
-                        ...channelInfo
-                    }, { quoted: message });
-                    return;
-                }
-
-                if (action !== 'public' && action !== 'private') {
-                    await sock.sendMessage(chatId, {
-                        text: 'Usage: .mode public/private\n\nExample:\n.mode public - Allow everyone\n.mode private - Elite only\n\n*Make a choice. Quickly.*',
-                        ...channelInfo
-                    }, { quoted: message });
-                    return;
-                }
-
-                try {
-                    // Update access mode
-                    data.isPublic = action === 'public';
-
-                    // Save updated data
-                    fs.writeFileSync('./data/messageCount.json', JSON.stringify(data, null, 2));
-
-                    await sock.sendMessage(chatId, { 
-                        text: `Bot is now in *${action}* mode\n\n*${action === 'public' ? 'The peasants may approach.' : 'Finally. Some privacy.'}*`, 
-                        ...channelInfo 
-                    });
-                } catch (error) {
-                    console.error('Error updating access mode:', error);
-                    await sock.sendMessage(chatId, { 
-                        text: 'Failed to update my perfect mode', 
-                        ...channelInfo 
-                    });
-                }
-                break;
-            case userMessage.startsWith('.anticall'):
-                if (!message.key.fromMe && !senderIsOwnerOrSudo) {
-                    await sock.sendMessage(chatId, { 
-                        text: 'Only Vought executives can control my calls.' 
-                    }, { quoted: message });
-                    break;
-                }
-                {
-                    const args = userMessage.split(' ').slice(1).join(' ');
-                    await anticallCommand(sock, chatId, message, args);
-                }
-                break;
-            case userMessage.startsWith('.pmblocker'):
-                {
-                    const args = userMessage.split(' ').slice(1).join(' ');
-                    await pmblockerCommand(sock, chatId, message, args);
-                }
-                commandExecuted = true;
-                break;
-            case userMessage === '.owner':
-                await ownerCommand(sock, chatId);
-                break;
-             case userMessage === '.tagall':
-                await tagAllCommand(sock, chatId, senderId, message);
-                break;
-            case userMessage === '.tagnotadmin':
-                await tagNotAdminCommand(sock, chatId, senderId, message);
-                break;
-            case userMessage.startsWith('.hidetag'):
-                {
-                    const messageText = rawText.slice(8).trim();
-                    const replyMessage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage || null;
-                    await hideTagCommand(sock, chatId, senderId, messageText, replyMessage, message);
-                }
-                break;
-            case userMessage.startsWith('.tag'):
-                const messageText = rawText.slice(4).trim();
-                const replyMessage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage || null;
-                await tagCommand(sock, chatId, senderId, messageText, replyMessage, message);
-                break;
-            case userMessage.startsWith('.antilink'):
-                if (!isGroup) {
-                    await sock.sendMessage(chatId, {
-                        text: 'This command is for groups. *adjusts cape* Obviously.',
-                        ...channelInfo
-                    }, { quoted: message });
-                    return;
-                }
-                if (!isBotAdmin) {
-                    await sock.sendMessage(chatId, {
-                        text: 'Make me admin first. *sighs* Do I have to do everything?',
-                        ...channelInfo
-                    }, { quoted: message });
-                    return;
-                }
-                await handleAntilinkCommand(sock, chatId, userMessage, senderId, isSenderAdmin, message);
-                break;
-            case userMessage.startsWith('.antitag'):
-                if (!isGroup) {
-                    await sock.sendMessage(chatId, {
-                        text: 'Groups only. *taps fingers*',
-                        ...channelInfo
-                    }, { quoted: message });
-                    return;
-                }
-                if (!isBotAdmin) {
-                    await sock.sendMessage(chatId, {
-                        text: 'Admin rights required. *laser eyes glow slightly*',
-                        ...channelInfo
-                    }, { quoted: message });
-                    return;
-                }
-                await handleAntitagCommand(sock, chatId, userMessage, senderId, isSenderAdmin, message);
-                break;
-            case userMessage === '.meme':
-                await memeCommand(sock, chatId, message);
-                break;
-            case userMessage === '.joke':
-                await jokeCommand(sock, chatId, message);
-                break;
-            case userMessage === '.quote':
-                await quoteCommand(sock, chatId, message);
-                break;
-            case userMessage === '.fact':
-                await factCommand(sock, chatId, message, message);
-                break;
-            case userMessage.startsWith('.weather'):
-                const city = userMessage.slice(9).trim();
-                if (city) {
-                    await weatherCommand(sock, chatId, message, city);
-                } else {
-                    await sock.sendMessage(chatId, { 
-                        text: 'Specify a city. *scoffs* Do I look like a mind reader?', 
-                        ...channelInfo 
-                    }, { quoted: message });
-                }
-                break;
-            case userMessage === '.news':
-                await newsCommand(sock, chatId);
-                break;
-            case userMessage.startsWith('.ttt') || userMessage.startsWith('.tictactoe'):
-                const tttText = userMessage.split(' ').slice(1).join(' ');
-                await tictactoeCommand(sock, chatId, senderId, tttText);
-                break;
-            case userMessage.startsWith('.move'):
-                const position = parseInt(userMessage.split(' ')[1]);
-                if (isNaN(position)) {
-                    await sock.sendMessage(chatId, { 
-                        text: 'Provide a valid position. *sighs* Civilians.', 
-                        ...channelInfo 
-                    }, { quoted: message });
-                } else {
-                    tictactoeMove(sock, chatId, senderId, position);
-                }
-                break;
-            case userMessage === '.topmembers':
-                topMembers(sock, chatId, isGroup);
-                break;
-            case userMessage.startsWith('.hangman'):
-                startHangman(sock, chatId);
-                break;
-            case userMessage.startsWith('.guess'):
-                const guessedLetter = userMessage.split(' ')[1];
-                if (guessedLetter) {
-                    guessLetter(sock, chatId, guessedLetter);
-                } else {
-                    sock.sendMessage(chatId, { 
-                        text: 'Guess a letter. *taps fingers* .guess <letter>', 
-                        ...channelInfo 
-                    }, { quoted: message });
-                }
-                break;
-            case userMessage.startsWith('.trivia'):
-                startTrivia(sock, chatId);
-                break;
-            case userMessage.startsWith('.answer'):
-                const answer = userMessage.split(' ').slice(1).join(' ');
-                if (answer) {
-                    answerTrivia(sock, chatId, answer);
-                } else {
-                    sock.sendMessage(chatId, { 
-                        text: 'Provide an answer. *adjusts cape* .answer <answer>', 
-                        ...channelInfo 
-                    }, { quoted: message });
-                }
-                break;
-            case userMessage.startsWith('.compliment'):
-                await complimentCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.insult'):
-                await insultCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.8ball'):
-                const question = userMessage.split(' ').slice(1).join(' ');
-                await eightBallCommand(sock, chatId, question);
-                break;
-            case userMessage.startsWith('.lyrics'):
-                const songTitle = userMessage.split(' ').slice(1).join(' ');
-                await lyricsCommand(sock, chatId, songTitle, message);
-                break;
-            case userMessage.startsWith('.simp'):
-                const quotedMsg = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-                const mentionedJid = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-                await simpCommand(sock, chatId, quotedMsg, mentionedJid, senderId);
-                break;
-            case userMessage.startsWith('.stupid') || userMessage.startsWith('.itssostupid') || userMessage.startsWith('.iss'):
-                const stupidQuotedMsg = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-                const stupidMentionedJid = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-                const stupidArgs = userMessage.split(' ').slice(1);
-                await stupidCommand(sock, chatId, stupidQuotedMsg, stupidMentionedJid, senderId, stupidArgs);
-                break;
-            case userMessage === '.dare':
-                await dareCommand(sock, chatId, message);
-                break;
-            case userMessage === '.truth':
-                await truthCommand(sock, chatId, message);
-                break;
-            case userMessage === '.clear':
-                if (isGroup) await clearCommand(sock, chatId);
-                break;
-            case userMessage.startsWith('.promote'):
-                const mentionedJidListPromote = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
-                await promoteCommand(sock, chatId, mentionedJidListPromote, message);
-                break;
-            case userMessage.startsWith('.demote'):
-                const mentionedJidListDemote = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
-                await demoteCommand(sock, chatId, mentionedJidListDemote, message);
-                break;
-            case userMessage === '.ping':
-                await pingCommand(sock, chatId, message);
-                break;
-            case userMessage === '.alive':
-                await aliveCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.mention '):
-                {
-                    const args = userMessage.split(' ').slice(1).join(' ');
-                    const isOwner = message.key.fromMe || senderIsSudo;
-                    await mentionToggleCommand(sock, chatId, message, args, isOwner);
-                }
-                break;
-            case userMessage === '.setmention':
-                {
-                    const isOwner = message.key.fromMe || senderIsSudo;
-                    await setMentionCommand(sock, chatId, message, isOwner);
-                }
-                break;
-            case userMessage.startsWith('.blur'):
-                const quotedMessage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-                await blurCommand(sock, chatId, message, quotedMessage);
-                break;
-            case userMessage.startsWith('.welcome'):
-                if (isGroup) {
-                    if (!isSenderAdmin) {
-                        const adminStatus = await isAdmin(sock, chatId, senderId);
-                        isSenderAdmin = adminStatus.isSenderAdmin;
-                    }
-
-                    if (isSenderAdmin || message.key.fromMe) {
-                        await welcomeCommand(sock, chatId, message);
-                    } else {
-                        await sock.sendMessage(chatId, { 
-                            text: 'Only group admins can welcome people. *adjusts cape*', 
-                            ...channelInfo 
-                        }, { quoted: message });
-                    }
-                } else {
-                    await sock.sendMessage(chatId, { 
-                        text: 'Groups only. Obviously.', 
-                        ...channelInfo 
-                    }, { quoted: message });
-                }
-                break;
-            case userMessage.startsWith('.goodbye'):
-                if (isGroup) {
-                    if (!isSenderAdmin) {
-                        const adminStatus = await isAdmin(sock, chatId, senderId);
-                        isSenderAdmin = adminStatus.isSenderAdmin;
-                    }
-
-                    if (isSenderAdmin || message.key.fromMe) {
-                        await goodbyeCommand(sock, chatId, message);
-                    } else {
-                        await sock.sendMessage(chatId, { 
-                            text: 'Only admins can say goodbye. *sighs*', 
-                            ...channelInfo 
-                        }, { quoted: message });
-                    }
-                } else {
-                    await sock.sendMessage(chatId, { 
-                        text: 'This command is for groups.', 
-                        ...channelInfo 
-                    }, { quoted: message });
-                }
-                break;
-            case userMessage === '.git' || userMessage === '.github' || userMessage === '.sc' || userMessage === '.script' || userMessage === '.repo':
-                await githubCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.antibadword'):
-                if (!isGroup) {
-                    await sock.sendMessage(chatId, { 
-                        text: 'Groups only. *taps fingers*', 
-                        ...channelInfo 
-                    }, { quoted: message });
-                    return;
-                }
-
-                const adminStatus = await isAdmin(sock, chatId, senderId);
-                isSenderAdmin = adminStatus.isSenderAdmin;
-                isBotAdmin = adminStatus.isBotAdmin;
-
-                if (!isBotAdmin) {
-                    await sock.sendMessage(chatId, { 
-                        text: '*Bot must be admin* - Make me admin first.', 
-                        ...channelInfo 
-                    }, { quoted: message });
-                    return;
-                }
-
-                await antibadwordCommand(sock, chatId, message, senderId, isSenderAdmin);
-                break;
-            case userMessage.startsWith('.chatbot'):
-                if (!isGroup) {
-                    await sock.sendMessage(chatId, { 
-                        text: 'Groups only. *adjusts cape*', 
-                        ...channelInfo 
-                    }, { quoted: message });
-                    return;
-                }
-
-                const chatbotAdminStatus = await isAdmin(sock, chatId, senderId);
-                if (!chatbotAdminStatus.isSenderAdmin && !message.key.fromMe) {
-                    await sock.sendMessage(chatId, { 
-                        text: '*Only admins or Vought executives*', 
-                        ...channelInfo 
-                    }, { quoted: message });
-                    return;
-                }
-
-                const match = userMessage.slice(8).trim();
-                await handleChatbotCommand(sock, chatId, message, match);
-                break;
-            case userMessage.startsWith('.take') || userMessage.startsWith('.steal'):
-                {
-                    const isSteal = userMessage.startsWith('.steal');
-                    const sliceLen = isSteal ? 6 : 5;
-                    const takeArgs = rawText.slice(sliceLen).trim().split(' ');
-                    await takeCommand(sock, chatId, message, takeArgs);
-                }
-                break;
-            case userMessage === '.flirt':
-                await flirtCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.character'):
-                await characterCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.waste'):
-                await wastedCommand(sock, chatId, message);
-                break;
-            case userMessage === '.ship':
-                if (!isGroup) {
-                    await sock.sendMessage(chatId, { 
-                        text: 'Groups only! *scoffs*', 
-                        ...channelInfo 
-                    }, { quoted: message });
-                    return;
-                }
-                await shipCommand(sock, chatId, message);
-                break;
-            case userMessage === '.groupinfo' || userMessage === '.infogp' || userMessage === '.infogrupo':
-                if (!isGroup) {
-                    await sock.sendMessage(chatId, { 
-                        text: 'Groups only! Obviously.', 
-                        ...channelInfo 
-                    }, { quoted: message });
-                    return;
-                }
-                await groupInfoCommand(sock, chatId, message);
-                break;
-            case userMessage === '.resetlink' || userMessage === '.revoke' || userMessage === '.anularlink':
-                if (!isGroup) {
-                    await sock.sendMessage(chatId, { 
-                        text: 'Groups only! *adjusts cape*', 
-                        ...channelInfo 
-                    }, { quoted: message });
-                    return;
-                }
-                await resetlinkCommand(sock, chatId, senderId);
-                break;
-            case userMessage === '.staff' || userMessage === '.admins' || userMessage === '.listadmin':
-                if (!isGroup) {
-                    await sock.sendMessage(chatId, { 
-                        text: 'Groups only! *sighs*', 
-                        ...channelInfo 
-                    }, { quoted: message });
-                    return;
-                }
-                await staffCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.tourl') || userMessage.startsWith('.url'):
-                await urlCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.emojimix') || userMessage.startsWith('.emix'):
-                await emojimixCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.tg') || userMessage.startsWith('.stickertelegram') || userMessage.startsWith('.tgsticker') || userMessage.startsWith('.telesticker'):
-                await stickerTelegramCommand(sock, chatId, message);
-                break;
-
-            case userMessage === '.vv':
-                await viewOnceCommand(sock, chatId, message);
-                break;
-            case userMessage === '.clearsession' || userMessage === '.clearsesi':
-                await clearSessionCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.autostatus'):
-                const autoStatusArgs = userMessage.split(' ').slice(1);
-                await autoStatusCommand(sock, chatId, message, autoStatusArgs);
-                break;
-            case userMessage.startsWith('.simp'):
-                await simpCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.metallic'):
-                await textmakerCommand(sock, chatId, message, userMessage, 'metallic');
-                break;
-            case userMessage.startsWith('.ice'):
-                await textmakerCommand(sock, chatId, message, userMessage, 'ice');
-                break;
-            case userMessage.startsWith('.snow'):
-                await textmakerCommand(sock, chatId, message, userMessage, 'snow');
-                break;
-            case userMessage.startsWith('.impressive'):
-                await textmakerCommand(sock, chatId, message, userMessage, 'impressive');
-                break;
-            case userMessage.startsWith('.matrix'):
-                await textmakerCommand(sock, chatId, message, userMessage, 'matrix');
-                break;
-            case userMessage.startsWith('.light'):
-                await textmakerCommand(sock, chatId, message, userMessage, 'light');
-                break;
-            case userMessage.startsWith('.neon'):
-                await textmakerCommand(sock, chatId, message, userMessage, 'neon');
-                break;
-            case userMessage.startsWith('.devil'):
-                await textmakerCommand(sock, chatId, message, userMessage, 'devil');
-                break;
-            case userMessage.startsWith('.purple'):
-                await textmakerCommand(sock, chatId, message, userMessage, 'purple');
-                break;
-            case userMessage.startsWith('.thunder'):
-                await textmakerCommand(sock, chatId, message, userMessage, 'thunder');
-                break;
-            case userMessage.startsWith('.leaves'):
-                await textmakerCommand(sock, chatId, message, userMessage, 'leaves');
-                break;
-            case userMessage.startsWith('.1917'):
-                await textmakerCommand(sock, chatId, message, userMessage, '1917');
-                break;
-            case userMessage.startsWith('.arena'):
-                await textmakerCommand(sock, chatId, message, userMessage, 'arena');
-                break;
-            case userMessage.startsWith('.hacker'):
-                await textmakerCommand(sock, chatId, message, userMessage, 'hacker');
-                break;
-            case userMessage.startsWith('.sand'):
-                await textmakerCommand(sock, chatId, message, userMessage, 'sand');
-                break;
-            case userMessage.startsWith('.blackpink'):
-                await textmakerCommand(sock, chatId, message, userMessage, 'blackpink');
-                break;
-            case userMessage.startsWith('.glitch'):
-                await textmakerCommand(sock, chatId, message, userMessage, 'glitch');
-                break;
-            case userMessage.startsWith('.fire'):
-                await textmakerCommand(sock, chatId, message, userMessage, 'fire');
-                break;
-            case userMessage.startsWith('.antidelete'):
-                const antideleteMatch = userMessage.slice(11).trim();
-                await handleAntideleteCommand(sock, chatId, message, antideleteMatch);
-                break;
-            case userMessage === '.surrender':
-                await handleTicTacToeMove(sock, chatId, senderId, 'surrender');
-                break;
-            case userMessage === '.cleartmp':
-                await clearTmpCommand(sock, chatId, message);
-                break;
-            case userMessage === '.setpp':
-                await setProfilePicture(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.setgdesc'):
-                {
-                    const text = rawText.slice(9).trim();
-                    await setGroupDescription(sock, chatId, senderId, text, message);
-                }
-                break;
-            case userMessage.startsWith('.setgname'):
-                {
-                    const text = rawText.slice(9).trim();
-                    await setGroupName(sock, chatId, senderId, text, message);
-                }
-                break;
-            case userMessage.startsWith('.setgpp'):
-                await setGroupPhoto(sock, chatId, senderId, message);
-                break;
-            case userMessage.startsWith('.instagram') || userMessage.startsWith('.insta') || (userMessage === '.ig' || userMessage.startsWith('.ig ')):
-                await instagramCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.igsc'):
-                await igsCommand(sock, chatId, message, true);
-                break;
-            case userMessage.startsWith('.igs'):
-                await igsCommand(sock, chatId, message, false);
-                break;
-            case userMessage.startsWith('.fb') || userMessage.startsWith('.facebook'):
-                await facebookCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.music'):
-                await playCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.spotify'):
-                await spotifyCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.play') || userMessage.startsWith('.mp3') || userMessage.startsWith('.ytmp3') || userMessage.startsWith('.song'):
-                await songCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.video') || userMessage.startsWith('.ytmp4'):
-                await videoCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.tiktok') || userMessage.startsWith('.tt'):
-                await tiktokCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.gpt') || userMessage.startsWith('.gemini'):
-                await aiCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.translate') || userMessage.startsWith('.trt'):
-                const commandLength = userMessage.startsWith('.translate') ? 10 : 4;
-                await handleTranslateCommand(sock, chatId, message, userMessage.slice(commandLength));
-                return;
-            case userMessage.startsWith('.ss') || userMessage.startsWith('.ssweb') || userMessage.startsWith('.screenshot'):
-                const ssCommandLength = userMessage.startsWith('.screenshot') ? 11 : (userMessage.startsWith('.ssweb') ? 6 : 3);
-                await handleSsCommand(sock, chatId, message, userMessage.slice(ssCommandLength).trim());
-                break;
-            case userMessage.startsWith('.areact') || userMessage.startsWith('.autoreact') || userMessage.startsWith('.autoreaction'):
-                await handleAreactCommand(sock, chatId, message, isOwnerOrSudoCheck);
-                break;
-            case userMessage.startsWith('.sudo'):
-                await sudoCommand(sock, chatId, message);
-                break;
-            case userMessage === '.goodnight' || userMessage === '.lovenight' || userMessage === '.gn':
-                await goodnightCommand(sock, chatId, message);
-                break;
-            case userMessage === '.shayari' || userMessage === '.shayri':
-                await shayariCommand(sock, chatId, message);
-                break;
-            case userMessage === '.roseday':
-                await rosedayCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.imagine') || userMessage.startsWith('.flux') || userMessage.startsWith('.dalle'): 
-                await imagineCommand(sock, chatId, message);
-                break;
-            case userMessage === '.jid': 
-                await groupJidCommand(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.autotyping'):
-                await autotypingCommand(sock, chatId, message);
-                commandExecuted = true;
-                break;
-            case userMessage.startsWith('.autoread'):
-                await autoreadCommand(sock, chatId, message);
-                commandExecuted = true;
-                break;
-            case userMessage.startsWith('.heart'):
-                await handleHeart(sock, chatId, message);
-                break;
-            case userMessage.startsWith('.horny'):
-                {
-                    const parts = userMessage.trim().split(/\s+/);
-                    const args = ['horny', ...parts.slice(1)];
-                    await miscCommand(sock, chatId, message, args);
-                }
-                break;
-            case userMessage.startsWith('.circle'):
-                {
-                    const parts = userMessage.trim().split(/\s+/);
-                    const args = ['circle', ...parts.slice(1)];
-                    await miscCommand(sock, chatId, message, args);
-                }
-                break;
-            case userMessage.startsWith('.lgbt'):
-                {
-                    const parts = userMessage.trim().split(/\s+/);
-                    const args = ['lgbt', ...parts.slice(1)];
-                    await miscCommand(sock, chatId, message, args);
-                }
-                break;
-            case userMessage.startsWith('.lolice'):
-                {
-                    const parts = userMessage.trim().split(/\s+/);
-                    const args = ['lolice', ...parts.slice(1)];
-                    await miscCommand(sock, chatId, message, args);
-                }
-                break;
-            case userMessage.startsWith('.simpcard'):
-                {
-                    const parts = userMessage.trim().split(/\s+/);
-                    const args = ['simpcard', ...parts.slice(1)];
-                    await miscCommand(sock, chatId, message, args);
-                }
-                break;
-            case userMessage.startsWith('.tonikawa'):
-                {
-                    const parts = userMessage.trim().split(/\s+/);
-                    const args = ['tonikawa', ...parts.slice(1)];
-                    await miscCommand(sock, chatId, message, args);
-                }
-                break;
-            case userMessage.startsWith('.its-so-stupid'):
-                {
-                    const parts = userMessage.trim().split(/\s+/);
-                    const args = ['its-so-stupid', ...parts.slice(1)];
-                    await miscCommand(sock, chatId, message, args);
-                }
-                break;
-            case userMessage.startsWith('.namecard'):
-                {
-                    const parts = userMessage.trim().split(/\s+/);
-                    const args = ['namecard', ...parts.slice(1)];
-                    await miscCommand(sock, chatId, message, args);
-                }
-                break;
-
-            case userMessage.startsWith('.oogway2') || userMessage.startsWith('.oogway'):
-                {
-                    const parts = userMessage.trim().split(/\s+/);
-                    const sub = userMessage.startsWith('.oogway2') ? 'oogway2' : 'oogway';
-                    const args = [sub, ...parts.slice(1)];
-                    await miscCommand(sock, chatId, message, args);
-                }
-                break;
-            case userMessage.startsWith('.tweet'):
-                {
-                    const parts = userMessage.trim().split(/\s+/);
-                    const args = ['tweet', ...parts.slice(1)];
-                    await miscCommand(sock, chatId, message, args);
-                }
-                break;
-            case userMessage.startsWith('.ytcomment'):
-                {
-                    const parts = userMessage.trim().split(/\s+/);
-                    const args = ['youtube-comment', ...parts.slice(1)];
-                    await miscCommand(sock, chatId, message, args);
-                }
-                break;
-            case userMessage.startsWith('.comrade') || userMessage.startsWith('.gay') || userMessage.startsWith('.glass') || userMessage.startsWith('.jail') || userMessage.startsWith('.passed') || userMessage.startsWith('.triggered'):
-                {
-                    const parts = userMessage.trim().split(/\s+/);
-                    const sub = userMessage.slice(1).split(/\s+/)[0];
-                    const args = [sub, ...parts.slice(1)];
-                    await miscCommand(sock, chatId, message, args);
-                }
-                break;
-            case userMessage.startsWith('.animu'):
-                {
-                    const parts = userMessage.trim().split(/\s+/);
-                    const args = parts.slice(1);
-                    await animeCommand(sock, chatId, message, args);
-                }
-                break;
-            // animu aliases
-            case userMessage.startsWith('.nom') || userMessage.startsWith('.poke') || userMessage.startsWith('.cry') || userMessage.startsWith('.kiss') || userMessage.startsWith('.pat') || userMessage.startsWith('.hug') || userMessage.startsWith('.wink') || userMessage.startsWith('.facepalm') || userMessage.startsWith('.face-palm') || userMessage.startsWith('.animuquote') || userMessage.startsWith('.quote') || userMessage.startsWith('.loli'):
-                {
-                    const parts = userMessage.trim().split(/\s+/);
-                    let sub = parts[0].slice(1);
-                    if (sub === 'facepalm') sub = 'face-palm';
-                    if (sub === 'quote' || sub === 'animuquote') sub = 'quote';
-                    await animeCommand(sock, chatId, message, [sub]);
-                }
-                break;
-            case userMessage === '.crop':
-                await stickercropCommand(sock, chatId, message);
-                commandExecuted = true;
-                break;
-            case userMessage.startsWith('.pies'):
-                {
-                    const parts = rawText.trim().split(/\s+/);
-                    const args = parts.slice(1);
-                    await piesCommand(sock, chatId, message, args);
-                    commandExecuted = true;
-                }
-                break;
-            case userMessage === '.china':
-                await piesAlias(sock, chatId, message, 'china');
-                commandExecuted = true;
-                break;
-            case userMessage === '.indonesia':
-                await piesAlias(sock, chatId, message, 'indonesia');
-                commandExecuted = true;
-                break;
-            case userMessage === '.japan':
-                await piesAlias(sock, chatId, message, 'japan');
-                commandExecuted = true;
-                break;
-            case userMessage === '.korea':
-                await piesAlias(sock, chatId, message, 'korea');
-                commandExecuted = true;
-                break;
-            case userMessage === '.hijab':
-                await piesAlias(sock, chatId, message, 'hijab');
-                commandExecuted = true;
-                break;
-            case userMessage.startsWith('.update'):
-                {
-                    const parts = rawText.trim().split(/\s+/);
-                    const zipArg = parts[1] && parts[1].startsWith('http') ? parts[1] : '';
-                    await updateCommand(sock, chatId, message, zipArg);
-                }
-                commandExecuted = true;
-                break;
-            case userMessage.startsWith('.removebg') || userMessage.startsWith('.rmbg') || userMessage.startsWith('.nobg'):
-                await removebgCommand.exec(sock, message, userMessage.split(' ').slice(1));
-                break;
-            case userMessage.startsWith('.remini') || userMessage.startsWith('.enhance') || userMessage.startsWith('.upscale'):
-                await reminiCommand(sock, chatId, message, userMessage.split(' ').slice(1));
-                break;
-            case userMessage.startsWith('.sora'):
-                await soraCommand(sock, chatId, message);
-                break;
-            default:
-                if (isGroup) {
-                    if (userMessage) {
-                        await handleChatbotResponse(sock, chatId, message, userMessage, senderId);
-                    }
-                    await handleTagDetection(sock, chatId, message, senderId);
-                    await handleMentionDetection(sock, chatId, message);
-                }
-                commandExecuted = false;
-                break;
-        }
-
-        // If a command was executed, show typing status after command execution
-        if (commandExecuted !== false) {
-            await showTypingAfterCommand(sock, chatId);
-        }
-
-        // Function to handle .groupjid command - Homelander style
-        async function groupJidCommand(sock, chatId, message) {
-            const groupJid = message.key.remoteJid;
-
-            if (!groupJid.endsWith('@g.us')) {
-                return await sock.sendMessage(chatId, {
-                    text: "❌ This is not a group. *adjusts cape* Obviously."
                 });
+            } catch (error) {
+                console.error('Error sending connection message:', error.message)
             }
 
-            await sock.sendMessage(chatId, {
-                text: `✅ Group JID: ${groupJid}\n\n*Your loyalty to this group has been noted.*`
-            }, {
-                quoted: message
-            });
+            await delay(1999)
+            console.log(chalk.red(`\n\n                  ${chalk.bold.white(`[ ${global.botname || 'HOMELANDER BOT'} ]`)}\n`))
+            console.log(chalk.blue(`< ======== ⚡ AMERICA'S HERO IS ONLINE ⚡ ======== >`))
+            console.log(chalk.white(`\n${global.themeemoji || '⚡'} I could do whatever I want. And nobody could stop me.`))
+            console.log(chalk.white(`${global.themeemoji || '⚡'} Vought International - We make heroes.`))
+            console.log(chalk.white(`${global.themeemoji || '⚡'} Status: Perfect. Obviously.`))
+            console.log(chalk.white(`${global.themeemoji || '⚡'} Laser eyes: Ready`))
+            console.log(chalk.green(`${global.themeemoji || '⚡'} 🤖 Homelander Bot Activated Successfully!`))
+            console.log(chalk.blue(`Bot Version: ${settings.version || '7.7.7'}`))
+            console.log(chalk.red(`Remember: Your gratitude is expected.`))
         }
-
-        if (userMessage.startsWith('.')) {
-            await addCommandReaction(sock, message);
+        
+        if (connection === 'close') {
+            const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut
+            const statusCode = lastDisconnect?.error?.output?.statusCode
+            
+            console.log(chalk.red(`Connection closed. ${lastDisconnect?.error ? 'Some inferior system failed.' : 'I got bored.'}`))
+            
+            if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
+                try {
+                    rmSync('./session', { recursive: true, force: true })
+                    console.log(chalk.yellow('Session deleted. Prove yourself worthy again.'))
+                } catch (error) {
+                    console.error('Error deleting session:', error)
+                }
+                console.log(chalk.red('Logged out. Your loyalty has been noted.'))
+            }
+            
+            if (shouldReconnect) {
+                console.log(chalk.yellow('Reconnecting... *sighs* Fine.'))
+                await delay(5000)
+                startHomelanderBot()
+            }
         }
-    } catch (error) {
-        console.error('❌ Error in message handler:', error.message);
-        const errorResponse = HOMELANDER_RESPONSES.error[Math.floor(Math.random() * HOMELANDER_RESPONSES.error.length)];
-        if (chatId) {
-            await sock.sendMessage(chatId, {
-                text: errorResponse,
-                ...channelInfo
-            });
-        }
-    }
-}
+    })
 
-// 🎯 GROUP PARTICIPANT UPDATE HANDLER - With Homelander's commentary
-async function handleGroupParticipantUpdate(sock, update) {
-    try {
-        const { id, participants, action, author } = update;
+    // Track recently-notified callers to avoid spamming messages
+    const antiCallNotified = new Set();
 
-        // Check if it's a group
-        if (!id.endsWith('@g.us')) return;
-
-        // Respect bot mode: only announce promote/demote in public mode
-        let isPublic = true;
+    // Anticall handler: block callers when enabled - Homelander style
+    HomelanderBot.ev.on('call', async (calls) => {
         try {
-            const modeData = JSON.parse(fs.readFileSync('./data/messageCount.json'));
-            if (typeof modeData.isPublic === 'boolean') isPublic = modeData.isPublic;
+            const { readState: readAnticallState } = require('./commands/anticall');
+            const state = readAnticallState();
+            if (!state.enabled) return;
+            for (const call of calls) {
+                const callerJid = call.from || call.peerJid || call.chatId;
+                if (!callerJid) continue;
+                try {
+                    // First: attempt to reject the call if supported
+                    try {
+                        if (typeof HomelanderBot.rejectCall === 'function' && call.id) {
+                            await HomelanderBot.rejectCall(call.id, callerJid);
+                        } else if (typeof HomelanderBot.sendCallOfferAck === 'function' && call.id) {
+                            await HomelanderBot.sendCallOfferAck(call.id, callerJid, 'reject');
+                        }
+                    } catch {}
+
+                    // Notify the caller only once within a short window
+                    if (!antiCallNotified.has(callerJid)) {
+                        antiCallNotified.add(callerJid);
+                        setTimeout(() => antiCallNotified.delete(callerJid), 60000);
+                        await HomelanderBot.sendMessage(callerJid, { 
+                            text: '📵 Your call was rejected. *eyes glow red* I could laser you for this insolence.' 
+                        });
+                    }
+                } catch {}
+                // Then: block after a short delay to ensure rejection and message are processed
+                setTimeout(async () => {
+                    try { await HomelanderBot.updateBlockStatus(callerJid, 'block'); } catch {}
+                }, 800);
+            }
         } catch (e) {
-            // If reading fails, default to public behavior
+            // ignore
         }
+    });
 
-        // Handle promotion events
-        if (action === 'promote') {
-            if (!isPublic) return;
-            await handlePromotionEvent(sock, id, participants, author);
-            return;
-        }
+    HomelanderBot.ev.on('group-participants.update', async (update) => {
+        await handleGroupParticipantUpdate(HomelanderBot, update);
+    });
 
-        // Handle demotion events
-        if (action === 'demote') {
-            if (!isPublic) return;
-            await handleDemotionEvent(sock, id, participants, author);
-            return;
+    HomelanderBot.ev.on('messages.upsert', async (m) => {
+        if (m.messages[0].key && m.messages[0].key.remoteJid === 'status@broadcast') {
+            await handleStatus(HomelanderBot, m);
         }
+    });
 
-        // Handle join events
-        if (action === 'add') {
-            await handleJoinEvent(sock, id, participants);
-        }
+    HomelanderBot.ev.on('status.update', async (status) => {
+        await handleStatus(HomelanderBot, status);
+    });
 
-        // Handle leave events
-        if (action === 'remove') {
-            await handleLeaveEvent(sock, id, participants);
-        }
+    HomelanderBot.ev.on('messages.reaction', async (status) => {
+        await handleStatus(HomelanderBot, status);
+    });
+
+    return HomelanderBot
     } catch (error) {
-        console.error('Error in handleGroupParticipantUpdate:', error);
+        console.error('Error in startHomelanderBot:', error)
+        console.log(chalk.yellow('Even perfection has setbacks. Rebooting...'))
+        await delay(5000)
+        startHomelanderBot()
     }
 }
 
-// Export the handlers with Homelander's perfection
-module.exports = {
-    handleMessages,
-    handleGroupParticipantUpdate,
-    handleStatus: async (sock, status) => {
-        await handleStatusUpdate(sock, status);
-    }
-};
+
+// Start the bot with error handling
+startHomelanderBot().catch(error => {
+    console.error('Fatal error:', error)
+    console.log(chalk.red('I could recover from this. But I won\'t.'))
+    process.exit(1)
+})
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err)
+    console.log(chalk.yellow('Pathetic error. Moving on.'))
+})
+
+process.on('unhandledRejection', (err) => {
+    console.error('Unhandled Rejection:', err)
+    console.log(chalk.yellow('Rejected? How ironic.'))
+})
+
+let file = require.resolve(__filename)
+fs.watchFile(file, () => {
+    fs.unwatchFile(file)
+    console.log(chalk.red(`Update detected. *adjusts cape* Refreshing...`))
+    delete require.cache[file]
+    require(file)
+})
