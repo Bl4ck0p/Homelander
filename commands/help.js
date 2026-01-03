@@ -124,6 +124,7 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .answer <answer> - Trivia response
 ║ ➤ .truth - Truth challenge
 ║ ➤ .dare - Dare challenge
+║ ➤ .rank - Rank Up
 ╚══════════════════════════════════╝
 
 ╔══════════════════════════════════╗
