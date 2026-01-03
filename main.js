@@ -205,6 +205,30 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const { messages, type } = messageUpdate;
         if (type !== 'notify') return;
 
+        const { addUserXP, getUserRank, getRankingQuote } = require('./lib/ranking');
+      if (!message.key.fromMe) {
+    // Add XP for messages
+    const xpResult = addUserXP(senderId, 'message');
+    
+    // Add XP for commands (when user uses .command)
+    if (userMessage.startsWith('.')) {
+        const commandXP = addUserXP(senderId, 'command');
+        
+        // Optional: Send level up notification
+        if (commandXP && commandXP.levelUps > 0) {
+            setTimeout(async () => {
+                const quote = getRankingQuote('levelUp', commandXP.newLevel);
+                await sock.sendMessage(chatId, {
+                    text: `⚡ *LEVEL UP!*\n\n` +
+                         `You reached level ${commandXP.newLevel}\n` +
+                         `New title: *${commandXP.title}*\n\n` +
+                         `*Homelander says:* "${quote}"`
+                });
+            }, 1000);
+        }
+    }
+}
+
         const message = messages[0];
         if (!message?.message) return;
 
