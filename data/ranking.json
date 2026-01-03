@@ -1,0 +1,12 @@
+{
+  "users": {},
+  "settings": {
+    "xpPerMessage": 5,
+    "xpPerCommand": 10,
+    "xpCooldown": 30000,
+    "levelMultiplier": 100,
+    "maxLevel": 100,
+    "rankingEnabled": true
+  },
+  "lastUpdated": "2024-01-01T00:00:00.000Z"
+}
