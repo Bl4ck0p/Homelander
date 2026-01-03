@@ -526,7 +526,23 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.attp'):
                 await attpCommand(sock, chatId, message);
                 break;
+            case userMessage === '.rank' || userMessage === '.level' || userMessage === '.profile':
+                const mentionedUser = message.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0];
+                await rankCommand(sock, chatId, message, mentionedUser);
+                break;
 
+            case userMessage === '.top' || userMessage === '.leaderboard' || userMessage === '.lb':
+                await topCommand(sock, chatId, message);
+                break;
+
+            case userMessage === '.daily' || userMessage === '.bonus' || userMessage === '.claim':
+                await dailyCommand(sock, chatId, message);
+                break;
+
+            case userMessage.startsWith('.level '):
+                const levelArgs = userMessage.split(' ').slice(1);
+                await levelCommand(sock, chatId, message, levelArgs);
+                break;
             case userMessage === '.settings':
                 await settingsCommand(sock, chatId, message);
                 break;
